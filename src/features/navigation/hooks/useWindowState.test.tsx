@@ -1,0 +1,197 @@
+import React, { act } from "react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { createRoot, Root } from "react-dom/client";
+import { useWindowState, type WindowStateHookResult } from "./useWindowState";
+import type { WindowState } from "../../../../electron/preload";
+
+describe("useWindowState", () => {
+  let container: HTMLDivElement | null = null;
+  let root: Root | null = null;
+  let latestState: WindowStateHookResult | null = null;
+  let mockIsFullScreen: any;
+  let mockIsMaximized: any;
+  let stateListener: ((state: WindowState) => void) | null = null;
+  let unsubscribeSpy: any;
+
+  function TestHarness() {
+    const state = useWindowState();
+    latestState = state;
+    return (
+      <div
+        data-testid="window-state"
+        data-maximized={state.isMaximized}
+        data-fullscreen={state.isFullScreen}
+        data-edgetoedge={state.isEdgeToEdge}
+      />
+    );
+  }
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    latestState = null;
+    stateListener = null;
+    unsubscribeSpy = vi.fn(() => {
+      stateListener = null;
+    });
+    mockIsFullScreen = vi.fn().mockResolvedValue(false);
+    mockIsMaximized = vi.fn().mockResolvedValue(false);
+
+    (window as any).linerElectron = {
+      isFullScreen: mockIsFullScreen,
+      isMaximized: mockIsMaximized,
+      onWindowStateChange: (cb: (state: WindowState) => void) => {
+        stateListener = cb;
+        return unsubscribeSpy;
+      },
+    };
+  });
+
+  afterEach(async () => {
+    if (root && container) {
+      await act(async () => {
+        root!.unmount();
+      });
+      if (container.parentNode) {
+        container.parentNode.removeChild(container);
+      }
+    }
+    root = null;
+    container = null;
+    latestState = null;
+    delete (window as any).linerElectron;
+    vi.restoreAllMocks();
+  });
+
+  async function mount() {
+    await act(async () => {
+      root!.render(<TestHarness />);
+    });
+  }
+
+  it("returns false for all states initially when not maximized or fullscreen", async () => {
+    await mount();
+
+    expect(latestState).toEqual({
+      isMaximized: false,
+      isFullScreen: false,
+      isEdgeToEdge: false,
+    });
+    expect(mockIsFullScreen).toHaveBeenCalled();
+    expect(mockIsMaximized).toHaveBeenCalled();
+  });
+
+  it("hydrates initial maximized state from electron", async () => {
+    mockIsMaximized.mockResolvedValue(true);
+
+    await mount();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(latestState).toEqual({
+      isMaximized: true,
+      isFullScreen: false,
+      isEdgeToEdge: true,
+    });
+  });
+
+  it("hydrates initial fullscreen state from electron", async () => {
+    mockIsFullScreen.mockResolvedValue(true);
+
+    await mount();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(latestState).toEqual({
+      isMaximized: false,
+      isFullScreen: true,
+      isEdgeToEdge: true,
+    });
+  });
+
+  it("updates state when onWindowStateChange event fires", async () => {
+    await mount();
+
+    expect(stateListener).toBeTypeOf("function");
+
+    // Maximize window
+    await act(async () => {
+      stateListener!({ isMaximized: true, isFullScreen: false });
+    });
+
+    expect(latestState).toEqual({
+      isMaximized: true,
+      isFullScreen: false,
+      isEdgeToEdge: true,
+    });
+
+    // Restore window
+    await act(async () => {
+      stateListener!({ isMaximized: false, isFullScreen: false });
+    });
+
+    expect(latestState).toEqual({
+      isMaximized: false,
+      isFullScreen: false,
+      isEdgeToEdge: false,
+    });
+
+    // Fullscreen window
+    await act(async () => {
+      stateListener!({ isMaximized: false, isFullScreen: true });
+    });
+
+    expect(latestState).toEqual({
+      isMaximized: false,
+      isFullScreen: true,
+      isEdgeToEdge: true,
+    });
+  });
+
+  it("re-checks window state on resize event", async () => {
+    await mount();
+
+    mockIsMaximized.mockResolvedValue(true);
+
+    await act(async () => {
+      window.dispatchEvent(new Event("resize"));
+      await Promise.resolve();
+    });
+
+    expect(latestState).toEqual({
+      isMaximized: true,
+      isFullScreen: false,
+      isEdgeToEdge: true,
+    });
+  });
+
+  it("unsubscribes and cleans up listeners on unmount", async () => {
+    const removeEventListenerSpy = vi.spyOn(window, "removeEventListener");
+    await mount();
+
+    await act(async () => {
+      root!.unmount();
+    });
+    root = null;
+
+    expect(unsubscribeSpy).toHaveBeenCalledTimes(1);
+    expect(removeEventListenerSpy).toHaveBeenCalledWith("resize", expect.any(Function));
+  });
+
+  it("works safely when window.linerElectron is undefined (browser mode)", async () => {
+    delete (window as any).linerElectron;
+
+    await mount();
+
+    expect(latestState).toEqual({
+      isMaximized: false,
+      isFullScreen: false,
+      isEdgeToEdge: false,
+    });
+  });
+});

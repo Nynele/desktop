@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
 import { LuMinus, LuSquare, LuX } from "react-icons/lu";
 import { useIsContentTransparent } from "@/features/settings/store/customizationStore";
+import { useWindowState } from "../hooks/useWindowState";
 
 export interface WindowControlsProps {
   className?: string;
@@ -15,30 +15,7 @@ export default function WindowControls({
   style,
   isFullscreen = false,
 }: WindowControlsProps) {
-  const [isWindowFullScreen, setIsWindowFullScreen] = useState(false);
-  const [isWindowMaximized, setIsWindowMaximized] = useState(false);
-
-  useEffect(() => {
-    if (!window.linerElectron) return;
-
-    // hydrate initial os window state
-    window.linerElectron.isFullScreen?.().then((fs) => {
-      if (typeof fs === "boolean") setIsWindowFullScreen(fs);
-    });
-    window.linerElectron.isMaximized?.().then((max) => {
-      if (typeof max === "boolean") setIsWindowMaximized(max);
-    });
-
-    // live sync across os fullscreen transitions & maximize toggles
-    const unsubscribe = window.linerElectron.onWindowStateChange?.((state) => {
-      setIsWindowFullScreen(state.isFullScreen);
-      setIsWindowMaximized(state.isMaximized);
-    });
-
-    return () => {
-      unsubscribe?.();
-    };
-  }, []);
+  const { isFullScreen: isWindowFullScreen, isMaximized: isWindowMaximized } = useWindowState();
 
   const isHyprland = window.linerElectron?.isHyprland ?? false;
 
