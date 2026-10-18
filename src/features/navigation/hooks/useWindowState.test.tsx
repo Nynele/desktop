@@ -194,4 +194,94 @@ describe("useWindowState", () => {
       isEdgeToEdge: false,
     });
   });
+
+  it("enters and exits fullscreen via fullscreenchange in browser mode", async () => {
+    delete (window as any).linerElectron;
+
+    await mount();
+
+    expect(latestState).toEqual({
+      isMaximized: false,
+      isFullScreen: false,
+      isEdgeToEdge: false,
+    });
+
+    // Enter fullscreen
+    const mockElement = document.createElement("div");
+    Object.defineProperty(document, "fullscreenElement", {
+      value: mockElement,
+      configurable: true,
+      writable: true,
+    });
+
+    await act(async () => {
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+
+    expect(latestState).toEqual({
+      isMaximized: false,
+      isFullScreen: true,
+      isEdgeToEdge: true,
+    });
+
+    // Exit fullscreen
+    Object.defineProperty(document, "fullscreenElement", {
+      value: null,
+      configurable: true,
+      writable: true,
+    });
+
+    await act(async () => {
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+
+    expect(latestState).toEqual({
+      isMaximized: false,
+      isFullScreen: false,
+      isEdgeToEdge: false,
+    });
+  });
+
+  it("handles IPC query promise rejections gracefully without unhandled errors", async () => {
+    mockIsFullScreen.mockRejectedValue(new Error("IPC failed"));
+    mockIsMaximized.mockRejectedValue(new Error("IPC failed"));
+
+    await mount();
+
+    expect(latestState).toEqual({
+      isMaximized: false,
+      isFullScreen: false,
+      isEdgeToEdge: false,
+    });
+  });
+
+  it("ignores IPC query results that resolve after a newer onWindowStateChange push event", async () => {
+    let resolveFsQuery: (val: boolean) => void = () => {};
+    mockIsFullScreen.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveFsQuery = resolve;
+        }),
+    );
+
+    await act(async () => {
+      root!.render(<TestHarness />);
+    });
+
+    // A newer push event arrives before the initial query resolves
+    await act(async () => {
+      stateListener?.({ isFullScreen: false, isMaximized: true });
+    });
+
+    expect(latestState?.isMaximized).toBe(true);
+    expect(latestState?.isFullScreen).toBe(false);
+
+    // Now the older query resolves with true (stale)
+    await act(async () => {
+      resolveFsQuery(true);
+    });
+
+    // Stale query result should be ignored
+    expect(latestState?.isFullScreen).toBe(false);
+  });
 });

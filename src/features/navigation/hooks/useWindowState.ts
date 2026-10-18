@@ -13,17 +13,16 @@ export function useWindowState(): WindowStateHookResult {
 
   useEffect(() => {
     let mounted = true;
+    let pushSeq = 0;
 
     // Browser-only fullscreen fallback
     const checkBrowserFullscreen = () => {
-      if (typeof document !== "undefined") {
+      if (typeof document !== "undefined" && mounted) {
         const isDomFullscreen = Boolean(
           document.fullscreenElement ||
             (window.matchMedia?.("(display-mode: fullscreen)")?.matches ?? false),
         );
-        if (isDomFullscreen && mounted) {
-          setIsFullScreen(true);
-        }
+        setIsFullScreen(isDomFullscreen);
       }
     };
 
@@ -38,21 +37,27 @@ export function useWindowState(): WindowStateHookResult {
     }
 
     // Hydrate initial os window state from electron
-    window.linerElectron.isFullScreen?.().then((fs) => {
-      if (mounted && typeof fs === "boolean") {
-        setIsFullScreen(fs);
-      }
-    });
+    const initialQuerySeq = pushSeq;
+    window.linerElectron.isFullScreen?.()
+      .then((fs) => {
+        if (mounted && pushSeq === initialQuerySeq && typeof fs === "boolean") {
+          setIsFullScreen(fs);
+        }
+      })
+      .catch(() => {});
 
-    window.linerElectron.isMaximized?.().then((max) => {
-      if (mounted && typeof max === "boolean") {
-        setIsMaximized(max);
-      }
-    });
+    window.linerElectron.isMaximized?.()
+      .then((max) => {
+        if (mounted && pushSeq === initialQuerySeq && typeof max === "boolean") {
+          setIsMaximized(max);
+        }
+      })
+      .catch(() => {});
 
     // Live sync across os fullscreen transitions & maximize toggles
     const unsubscribe = window.linerElectron.onWindowStateChange?.((state: WindowState) => {
       if (mounted && state) {
+        pushSeq++;
         setIsFullScreen(Boolean(state.isFullScreen));
         setIsMaximized(Boolean(state.isMaximized));
       }
@@ -61,18 +66,36 @@ export function useWindowState(): WindowStateHookResult {
     // Fallback sync on window resize for compositors (e.g. Wayland)
     const handleResize = () => {
       if (!mounted) return;
-      window.linerElectron?.isMaximized?.().then((max) => {
-        if (mounted && typeof max === "boolean") setIsMaximized(max);
-      });
-      window.linerElectron?.isFullScreen?.().then((fs) => {
-        if (mounted && typeof fs === "boolean") setIsFullScreen(fs);
-      });
+      const resizeSeq = pushSeq;
+      window.linerElectron?.isMaximized?.()
+        .then((max) => {
+          if (mounted && pushSeq === resizeSeq && typeof max === "boolean") {
+            setIsMaximized(max);
+          }
+        })
+        .catch(() => {});
+      window.linerElectron?.isFullScreen?.()
+        .then((fs) => {
+          if (mounted && pushSeq === resizeSeq && typeof fs === "boolean") {
+            setIsFullScreen(fs);
+          }
+        })
+        .catch(() => {});
     };
 
     const handleFullscreenChange = () => {
       if (!mounted) return;
       if (document.fullscreenElement) {
         setIsFullScreen(true);
+      } else {
+        const querySeq = pushSeq;
+        window.linerElectron?.isFullScreen?.()
+          .then((fs) => {
+            if (mounted && pushSeq === querySeq && typeof fs === "boolean") {
+              setIsFullScreen(fs);
+            }
+          })
+          .catch(() => {});
       }
     };
 
