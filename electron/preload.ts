@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import { startPoTokenWorker } from "./potoken-preload";
 import type { MainNetResult } from "./netdiag";
 
 export interface DeeplinkTarget {
@@ -128,6 +129,10 @@ export interface LinerElectronApi {
   onOverlaySettingsChanged: (cb: (settings: any) => void) => () => void;
   onOverlayVisibility: (cb: (visible: boolean) => void) => () => void;
   setOverlayAuthenticated?: (authenticated: boolean) => void;
+  discordUpdateState: (state: any) => void;
+  discordUpdateSettings: (settings: any) => void;
+  getDiscordStatus: () => Promise<{ connected: boolean; username?: string }>;
+  mintPoToken: (identifier: string) => Promise<string>;
 }
 
 const isHyprland = Boolean(
@@ -335,6 +340,18 @@ const api: LinerElectronApi = {
   setOverlayAuthenticated: (authenticated) => {
     ipcRenderer.send("overlay:set-authenticated", authenticated);
   },
+  discordUpdateState: (state) => {
+    ipcRenderer.send("discord:update-state", state);
+  },
+  discordUpdateSettings: (settings) => {
+    ipcRenderer.send("discord:update-settings", settings);
+  },
+  getDiscordStatus: () => ipcRenderer.invoke("discord:get-status"),
+  mintPoToken: (identifier) => ipcRenderer.invoke("potoken:mint", identifier),
 };
 
-contextBridge.exposeInMainWorld("linerElectron", api);
+if (location.hostname === "www.youtube.com") {
+  startPoTokenWorker();
+} else {
+  contextBridge.exposeInMainWorld("linerElectron", api);
+}

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, screen, dialog, session, nativeImage, powerSaveBlocker } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain, shell, screen, dialog, session, nativeImage, powerSaveBlocker } from "electron";
 import { autoUpdater } from "electron-updater";
 import path from "node:path";
 import fs from "node:fs";
@@ -7,7 +7,7 @@ import dns from "node:dns";
 import net from "node:net";
 import tls from "node:tls";
 import https from "node:https";
-import { execFile } from "node:child_process";
+import { execFile as nodeExecFile, type ChildProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   signCoverUrl,
@@ -38,6 +38,10 @@ import { OverlayManager } from "./overlay.js";
 import { BundleManager } from "./bundle-manager.js";
 import { createBundleErrorStamp } from "./bundle-stamp.js";
 import { createSleepBlocker } from "./sleep-blocker.js";
+import { createShutdown } from "./shutdown.js";
+import { computeDragBounds } from "./window-drag.js";
+import { DiscordRpcManager } from "./discord.js";
+import { PoTokenService } from "./potoken.js";
 
 // root error handling for main process
 process.on("uncaughtException", (error) => {
@@ -71,6 +75,55 @@ let mainWindow: BrowserWindow | null = null;
 let touchBarManager: TouchBarManager | null = null;
 let overlayManager: OverlayManager | null = null;
 let bundleManager: BundleManager | null = null;
+let discordRpcManager: DiscordRpcManager | null = null;
+let poTokenService: PoTokenService | null = null;
+
+// every helper process we spawn (tracert, icon cache refresh, ...) is tracked so
+// quitting can kill whatever is still running instead of leaving orphans behind
+const spawnedChildren = new Set<ChildProcess>();
+const execFile = ((...args: Parameters<typeof nodeExecFile>) => {
+  const child = nodeExecFile(...args);
+  spawnedChildren.add(child);
+  child.once("exit", () => spawnedChildren.delete(child));
+  child.once("error", () => spawnedChildren.delete(child));
+  return child;
+}) as typeof nodeExecFile;
+
+// single owner of "the app is going away": releases the overlay, shortcuts,
+// helper processes and every window, then quits and force-exits if that stalls
+const shutdown = createShutdown({
+  cleanup: [
+    () => touchBarManager?.unregisterShortcut(),
+    () => overlayManager?.dispose(),
+    () => {
+      // drop the discord ipc socket so presence clears and nothing keeps the process alive
+      discordRpcManager?.destroy();
+      discordRpcManager = null;
+    },
+    () => {
+      poTokenService?.destroy();
+      poTokenService = null;
+    },
+    () => globalShortcut.unregisterAll(),
+    () => {
+      for (const child of spawnedChildren) {
+        try {
+          child.kill();
+        } catch {}
+      }
+      spawnedChildren.clear();
+    },
+    () => {
+      // destroy() skips close handlers, so a hidden or stuck window cannot veto the quit
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.destroy();
+      }
+    },
+  ],
+  quit: () => app.quit(),
+  forceExit: () => app.exit(0),
+  watchdogMs: 4000,
+});
 
 // liner:// deeplink support (share links bounce here from link.tryliner.fun)
 
@@ -224,8 +277,18 @@ function createWindow() {
       defaultRendererDist: RENDERER_DIST,
     });
     bundleManager.setMainWindow(mainWindow);
-    mainWindow.loadFile(bundleManager.getEffectiveIndexPath());
+    const manager = bundleManager;
+    const win = mainWindow;
+    void (async () => {
+      if (app.isPackaged) await manager.updateBeforeLaunch().catch(() => undefined);
+      if (!win.isDestroyed()) win.loadFile(manager.getEffectiveIndexPath());
+    })();
   }
+
+  mainWindow.once("ready-to-show", () => {
+    mainWindow?.show();
+    mainWindow?.focus();
+  });
 
   // renderer ready, deliver any cold-start deeplink waiting in the queue
   mainWindow.webContents.on("did-finish-load", () => {
@@ -233,10 +296,14 @@ function createWindow() {
   });
 
   mainWindow.on("closed", () => {
+    poTokenService?.destroy();
     mainWindow = null;
-    overlayManager?.destroy();
-    if (process.platform !== "darwin") {
-      app.quit();
+    if (process.platform === "darwin") {
+      // macOS keeps the app alive without windows; the overlay can be rebuilt on activate
+      overlayManager?.destroy();
+    } else {
+      // closing the main window (title bar button, taskbar, alt+f4) ends the whole app
+      shutdown.quit();
     }
   });
 
@@ -255,10 +322,19 @@ if (!gotTheLock) {
   app.on("second-instance", (_event, argv) => {
     // running instance gets here when xdg-open / os launches liner:// again
     const raw = findDeeplinkArg(argv);
+    if (shutdown.isQuitting()) {
+      // this process is on its way out and can no longer show a window; the new
+      // launch already handed over to us and exited, so start a fresh instance
+      // once we are gone instead of swallowing the launch
+      app.relaunch({ args: process.argv.slice(1).filter((a) => !a.startsWith("--inspect")) });
+      app.exit(0);
+      return;
+    }
     if (!mainWindow || mainWindow.isDestroyed()) {
       createWindow();
     } else {
       if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
       mainWindow.focus();
     }
     if (raw) deliverDeeplink(parseDeeplink(raw));
@@ -300,6 +376,9 @@ if (!gotTheLock) {
     );
     overlayManager.setMainWindow(mainWindow);
     overlayManager.registerShortcut();
+
+    discordRpcManager = new DiscordRpcManager();
+    poTokenService = new PoTokenService(path.join(__dirname, "preload.cjs"));
 
     const isHyprland = Boolean(
       process.env.HYPRLAND_INSTANCE_SIGNATURE ||
@@ -761,49 +840,50 @@ if (!gotTheLock) {
     });
 
     // manual window move for windows/macos, anchored on the system cursor.
-    // linux uses css app-region instead (see useWindowDrag): wayland ignores setPosition
+    // linux uses css app-region instead (see useWindowDrag): wayland ignores setPosition.
+    // moves go through setBounds with the size locked at drag start: setPosition
+    // on scaled / mixed-dpi windows displays rounds the size and grows the window
+    // (see window-drag.ts)
     let dragStartCursor: { x: number; y: number } | null = null;
-    let dragStartWinPos: { x: number; y: number } | null = null;
+    let dragStartBounds: { x: number; y: number; width: number; height: number } | null = null;
+
+    const beginDrag = () => {
+      if (!mainWindow) return;
+      dragStartCursor = screen.getCursorScreenPoint();
+      dragStartBounds = mainWindow.getBounds();
+    };
 
     ipcMain.on("window:drag-start", () => {
       if (!mainWindow || mainWindow.isFullScreen()) return;
       if (mainWindow.isMaximized()) {
         mainWindow.unmaximize();
       }
-      const [wx, wy] = mainWindow.getPosition();
-      dragStartCursor = screen.getCursorScreenPoint();
-      dragStartWinPos = { x: wx, y: wy };
+      beginDrag();
     });
 
     ipcMain.on("window:drag-end", () => {
       dragStartCursor = null;
-      dragStartWinPos = null;
+      dragStartBounds = null;
     });
 
-    ipcMain.on("window:drag-move", (_event, { deltaX, deltaY }: { deltaX: number; deltaY: number }) => {
+    ipcMain.on("window:drag-move", () => {
       if (!mainWindow || mainWindow.isFullScreen()) return;
       if (mainWindow.isMaximized()) {
         mainWindow.unmaximize();
-        const [wx, wy] = mainWindow.getPosition();
-        dragStartCursor = screen.getCursorScreenPoint();
-        dragStartWinPos = { x: wx, y: wy };
+        beginDrag();
       }
+      if (!dragStartCursor || !dragStartBounds) beginDrag();
+      if (!dragStartCursor || !dragStartBounds) return;
 
-      if (!dragStartCursor || !dragStartWinPos) {
-        const [wx, wy] = mainWindow.getPosition();
-        dragStartCursor = screen.getCursorScreenPoint();
-        dragStartWinPos = { x: wx, y: wy };
-      }
-
-      const currentCursor = screen.getCursorScreenPoint();
-      const dx = currentCursor.x - dragStartCursor.x;
-      const dy = currentCursor.y - dragStartCursor.y;
-
-      if ((dx !== 0 || dy !== 0) && dragStartWinPos) {
-        mainWindow.setPosition(Math.round(dragStartWinPos.x + dx), Math.round(dragStartWinPos.y + dy));
-      } else {
-        const [x, y] = mainWindow.getPosition();
-        mainWindow.setPosition(Math.round(x + deltaX), Math.round(y + deltaY));
+      const next = computeDragBounds(dragStartBounds, dragStartCursor, screen.getCursorScreenPoint());
+      const cur = mainWindow.getBounds();
+      if (
+        next.x !== cur.x ||
+        next.y !== cur.y ||
+        next.width !== cur.width ||
+        next.height !== cur.height
+      ) {
+        mainWindow.setBounds(next);
       }
     });
 
@@ -1202,9 +1282,6 @@ if (!gotTheLock) {
         autoUpdater.checkForUpdates().catch((err) => {
           console.error("\x1b[31m updater \x1b[0m background check error:", err?.message || err);
         });
-        bundleManager?.checkForUpdates().catch((err) => {
-          console.error("\x1b[31m bundle updater \x1b[0m check error:", err?.message || err);
-        });
       }, 4000);
 
       // check for OTA bundles every 15 minutes silently in background
@@ -1214,7 +1291,7 @@ if (!gotTheLock) {
     }
 
     app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) {
+      if (!shutdown.isQuitting() && BrowserWindow.getAllWindows().length === 0) {
         createWindow();
       }
     });
@@ -1223,12 +1300,10 @@ if (!gotTheLock) {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
-    app.quit();
+    shutdown.quit();
   }
 });
 
-app.on("will-quit", () => {
-  touchBarManager?.unregisterShortcut();
-  overlayManager?.unregisterShortcut();
-  overlayManager?.destroy();
-});
+// covers every other way out: cmd+q, the updater's quitAndInstall, os shutdown
+app.on("before-quit", () => shutdown.begin());
+app.on("will-quit", () => shutdown.begin());

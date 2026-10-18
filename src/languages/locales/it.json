@@ -342,6 +342,9 @@
     }
   },
   "player": {
+    "repeat_off": "Ripeti: disattivato",
+    "repeat_all": "Ripeti: tutto",
+    "repeat_one": "Ripeti: brano",
     "nothing_playing": "Nessuna riproduzione",
     "choose_track": "Scegli un brano dalla ricerca",
     "queue": "Coda",
@@ -961,5 +964,13 @@
     "downloaded_desc": "Riavvia Liner per installare la versione {version}.",
     "install_button": "Installa",
     "error_title": "Aggiornamento non riuscito"
+  },
+  "track_search": {
+    "placeholder_playlist": "Cerca nella playlist",
+    "placeholder_album": "Cerca nell’album",
+    "button": "Cerca brani",
+    "count": "{count} di {total}",
+    "no_results": "Nessun brano corrisponde a “{query}”",
+    "clear": "Cancella ricerca"
   }
 }
