@@ -37,10 +37,13 @@ describe("useWindowState", () => {
     });
     mockIsFullScreen = vi.fn().mockResolvedValue(false);
     mockIsMaximized = vi.fn().mockResolvedValue(false);
+    document.body.className = "h-full w-full bg-transparent overflow-hidden p-1";
+    document.body.removeAttribute("data-edge-to-edge");
 
     (window as any).linerElectron = {
       isFullScreen: mockIsFullScreen,
       isMaximized: mockIsMaximized,
+      toggleFullScreen: vi.fn().mockResolvedValue(undefined),
       onWindowStateChange: (cb: (state: WindowState) => void) => {
         stateListener = cb;
         return unsubscribeSpy;
@@ -283,5 +286,40 @@ describe("useWindowState", () => {
 
     // Stale query result should be ignored
     expect(latestState?.isFullScreen).toBe(false);
+  });
+
+  it("prevents default on F11 keydown to disable uncoordinated fullscreen", async () => {
+    await mount();
+
+    const event = new KeyboardEvent("keydown", { key: "F11", cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("updates document.body classes and data-edge-to-edge attribute", async () => {
+    await mount();
+
+    expect(document.body.getAttribute("data-edge-to-edge")).toBeNull();
+    expect(document.body.classList.contains("p-1")).toBe(true);
+    expect(document.body.classList.contains("p-0")).toBe(false);
+
+    // Maximize window
+    await act(async () => {
+      stateListener!({ isMaximized: true, isFullScreen: false });
+    });
+
+    expect(document.body.getAttribute("data-edge-to-edge")).toBe("true");
+    expect(document.body.classList.contains("p-0")).toBe(true);
+    expect(document.body.classList.contains("p-1")).toBe(false);
+
+    // Restore window
+    await act(async () => {
+      stateListener!({ isMaximized: false, isFullScreen: false });
+    });
+
+    expect(document.body.getAttribute("data-edge-to-edge")).toBeNull();
+    expect(document.body.classList.contains("p-1")).toBe(true);
+    expect(document.body.classList.contains("p-0")).toBe(false);
   });
 });
