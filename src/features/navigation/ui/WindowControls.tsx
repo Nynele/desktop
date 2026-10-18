@@ -1,6 +1,7 @@
 import { LuMinus, LuSquare, LuX } from "react-icons/lu";
 import { useIsContentTransparent } from "@/features/settings/store/customizationStore";
 import { useWindowState } from "../hooks/useWindowState";
+import { useWindowAnimationStore } from "@/shared/ui";
 
 export interface WindowControlsProps {
   className?: string;
@@ -22,7 +23,7 @@ export default function WindowControls({
   const handleMinimize = () => {
     // macos fullscreen spaces and hyprland tiling wm prohibit/ignore minimizing
     if (isWindowFullScreen || isHyprland) return;
-    window.linerElectron?.minimize();
+    useWindowAnimationStore.getState().triggerMinimize();
   };
 
   const handleMaximize = () => {
@@ -30,7 +31,7 @@ export default function WindowControls({
   };
 
   const handleClose = () => {
-    window.linerElectron?.close();
+    useWindowAnimationStore.getState().triggerClose();
   };
 
   const isDarkMode = isFullscreen;
@@ -45,6 +46,7 @@ export default function WindowControls({
     >
       <div
         data-no-window-drag
+        data-no-tooltip="true"
         className={`flex items-center h-[32px] min-h-[32px] max-h-[32px] box-border px-[3px] gap-[2px] rounded-lg pointer-events-auto transition-colors ${
           isFullscreen
             ? "apple-glass-pill-dark text-white"
@@ -60,6 +62,7 @@ export default function WindowControls({
           onClick={isMinimizeDisabled ? undefined : handleMinimize}
           disabled={isMinimizeDisabled}
           aria-disabled={isMinimizeDisabled}
+          data-no-tooltip="true"
           className={`flex items-center justify-center w-[26px] h-[26px] min-w-[26px] min-h-[26px] max-h-[26px] rounded-md border-none bg-transparent transition-colors ${
             isMinimizeDisabled
               ? "opacity-30 cursor-not-allowed pointer-events-none"
@@ -72,13 +75,13 @@ export default function WindowControls({
                     : "text-text-primary hover:bg-border-alpha-14 active:scale-95 cursor-pointer"
           }`}
           aria-label="Minimize"
-          title={isMinimizeDisabled ? undefined : "Minimize"}
         >
           <LuMinus size={13} />
         </button>
         <button
           type="button"
           onClick={handleMaximize}
+          data-no-tooltip="true"
           className={`flex items-center justify-center w-[26px] h-[26px] min-w-[26px] min-h-[26px] max-h-[26px] rounded-md cursor-pointer border-none bg-transparent transition-colors active:scale-95 ${
             isFullscreen
               ? "text-white/80 hover:text-white hover:bg-white/10"
@@ -95,19 +98,13 @@ export default function WindowControls({
                 ? "Restore"
                 : "Maximize"
           }
-          title={
-            isWindowFullScreen
-              ? "Exit Fullscreen"
-              : isWindowMaximized
-                ? "Restore"
-                : "Maximize"
-          }
         >
           <LuSquare size={11} />
         </button>
         <button
           type="button"
           onClick={handleClose}
+          data-no-tooltip="true"
           className={`flex items-center justify-center w-[26px] h-[26px] min-w-[26px] min-h-[26px] max-h-[26px] rounded-md cursor-pointer border-none bg-transparent transition-colors hover:bg-[#E81123] hover:text-white active:scale-95 ${
             isFullscreen
               ? "text-white/80 hover:text-white hover:bg-[#E81123]"
@@ -118,7 +115,6 @@ export default function WindowControls({
                   : "text-text-primary"
           }`}
           aria-label="Close"
-          title="Close"
         >
           <LuX size={13} />
         </button>
