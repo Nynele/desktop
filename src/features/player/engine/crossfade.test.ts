@@ -1,0 +1,133 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+const mocks = vi.hoisted(() => ({ resolvePlaybackStream: vi.fn() }));
+
+vi.mock("./streamResolver", () => ({ resolvePlaybackStream: mocks.resolvePlaybackStream }));
+
+import { playerRuntime } from "./playerRuntime";
+import { usePlayerStore } from "../store/playerStore";
+import type { Track } from "@/shared/types";
+
+const trackA: Track = {
+  id: "track-a",
+  title: "Track A",
+  artists: "Artist A",
+  durationMs: 180_000,
+  coverUrl: "",
+  playCount: 0,
+};
+
+const trackB: Track = {
+  id: "track-b",
+  title: "Track B",
+  artists: "Artist B",
+  durationMs: 200_000,
+  coverUrl: "",
+  playCount: 0,
+};
+
+describe("Smooth Crossfade Transitions", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    usePlayerStore.setState({
+      status: "playing",
+      currentTrack: trackA,
+      queue: [trackA, trackB],
+      currentIndex: 0,
+      volume: 0.8,
+      crossfadeEnabled: true,
+      crossfadeDuration: 5,
+    });
+
+    mocks.resolvePlaybackStream.mockResolvedValue({
+      url: "https://example.com/audio-b.mp3",
+      blob: null,
+      mimeType: "audio/mp3",
+      expiresAtMs: null,
+    });
+
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(function (this: any) {
+      Object.defineProperty(this, "paused", { value: false, configurable: true, writable: true });
+      return Promise.resolve();
+    });
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(function (this: any) {
+      Object.defineProperty(this, "paused", { value: true, configurable: true, writable: true });
+    });
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("has crossfade enabled by default with 5 seconds duration", () => {
+    const store = usePlayerStore.getState();
+    expect(store.crossfadeEnabled).toBe(true);
+    expect(store.crossfadeDuration).toBe(5);
+  });
+
+  it("updates and clamps crossfade duration correctly between 1s and 12s", () => {
+    const store = usePlayerStore.getState();
+    store.setCrossfadeDuration(8);
+    expect(usePlayerStore.getState().crossfadeDuration).toBe(8);
+
+    store.setCrossfadeDuration(0);
+    expect(usePlayerStore.getState().crossfadeDuration).toBe(1);
+
+    store.setCrossfadeDuration(20);
+    expect(usePlayerStore.getState().crossfadeDuration).toBe(12);
+
+    store.setCrossfadeEnabled(false);
+    expect(usePlayerStore.getState().crossfadeEnabled).toBe(false);
+  });
+
+  it("smoothly executes crossfade: fades in incoming deck, fades out outgoing deck and swaps active deck", async () => {
+    if (!playerRuntime) return;
+
+    const runtime = playerRuntime as any;
+    const initialDeckIndex = runtime.activeDeckIndex;
+    const outgoingDeck = runtime.decks[initialDeckIndex];
+    const incomingIndex = 1 - initialDeckIndex;
+    const incomingDeck = runtime.decks[incomingIndex];
+
+    outgoingDeck.volume = 0.8;
+    Object.defineProperty(outgoingDeck, "paused", {
+      value: false,
+      configurable: true,
+      writable: true,
+    });
+    Object.defineProperty(incomingDeck, "readyState", {
+      value: 4,
+      configurable: true,
+      writable: true,
+    });
+
+    let startCalledWith: Track | null = null;
+    let completeCalledWith: Track | null = null;
+    playerRuntime.onCrossfadeStart = (track) => {
+      startCalledWith = track;
+    };
+    playerRuntime.onCrossfadeComplete = (track) => {
+      completeCalledWith = track;
+    };
+
+    const crossfadePromise = playerRuntime.startCrossfade(trackB, 2);
+
+    // Fast-forward initial stream load
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(startCalledWith).toEqual(trackB);
+    expect(runtime.isTransitioning).toBe(true);
+
+    // Advance through the crossfade loop (2 seconds)
+    await vi.advanceTimersByTimeAsync(2100);
+    await crossfadePromise;
+
+    expect(completeCalledWith).toEqual(trackB);
+    expect(runtime.isTransitioning).toBe(false);
+    expect(runtime.activeDeckIndex).toBe(incomingIndex);
+    expect(runtime.currentTrackId).toBe(trackB.id);
+    expect(incomingDeck.volume).toBe(0.8);
+  });
+});

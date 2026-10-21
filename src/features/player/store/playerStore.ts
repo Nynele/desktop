@@ -63,6 +63,8 @@ export interface SessionState {
   keepSpeedAcrossTracks: boolean;
   isReverbEnabled: boolean;
   reverbLevel: number;
+  crossfadeEnabled: boolean;
+  crossfadeDuration: number;
 }
 
 export type PlayerState = TransportState &
@@ -117,6 +119,8 @@ export interface PlayerStore extends PlayerState {
   setKeepSpeedAcrossTracks: (keep: boolean) => void;
   setIsReverbEnabled: (enabled: boolean) => void;
   setReverbLevel: (level: number) => void;
+  setCrossfadeEnabled: (enabled: boolean) => void;
+  setCrossfadeDuration: (seconds: number) => void;
   resetSpeedAndPitch: () => void;
   clearQueue: () => void;
 }
@@ -160,6 +164,8 @@ export const usePlayerStore = create<PlayerStore>()(
       keepSpeedAcrossTracks: true,
       isReverbEnabled: false,
       reverbLevel: 0.35,
+      crossfadeEnabled: true,
+      crossfadeDuration: 5,
 
       dispatch: () => {
         // Implementation injected by PlayerEngine
@@ -210,6 +216,10 @@ export const usePlayerStore = create<PlayerStore>()(
       setIsReverbEnabled: (isReverbEnabled: boolean) => set({ isReverbEnabled }),
       setReverbLevel: (reverbLevel: number) =>
         set({ reverbLevel: Math.max(0, Math.min(1, reverbLevel)) }),
+      setCrossfadeEnabled: (crossfadeEnabled: boolean) =>
+        set({ crossfadeEnabled }),
+      setCrossfadeDuration: (crossfadeDuration: number) =>
+        set({ crossfadeDuration: Math.max(1, Math.min(12, crossfadeDuration)) }),
       resetSpeedAndPitch: () => set({ playbackRate: 1, pitchSemitones: 0 }),
       clearQueue: () => {
         const state = get();
@@ -279,6 +289,12 @@ export const usePlayerStore = create<PlayerStore>()(
           if (typeof state.reverbLevel !== "number" || isNaN(state.reverbLevel)) {
             state.reverbLevel = 0.35;
           }
+          if (typeof state.crossfadeEnabled !== "boolean") {
+            state.crossfadeEnabled = true;
+          }
+          if (typeof state.crossfadeDuration !== "number" || isNaN(state.crossfadeDuration)) {
+            state.crossfadeDuration = 5;
+          }
         }
       },
       partialize: (state) => ({
@@ -310,6 +326,8 @@ export const usePlayerStore = create<PlayerStore>()(
         keepSpeedAcrossTracks: state.keepSpeedAcrossTracks,
         isReverbEnabled: state.isReverbEnabled,
         reverbLevel: state.reverbLevel,
+        crossfadeEnabled: state.crossfadeEnabled,
+        crossfadeDuration: state.crossfadeDuration,
       }),
     },
   ),
