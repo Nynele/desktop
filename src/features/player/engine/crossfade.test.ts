@@ -134,6 +134,7 @@ describe("Smooth Crossfade Transitions", () => {
 
     let startCalledWith: Track | null = null;
     let completeCalledWith: Track | null = null;
+    playerRuntime.getUpcomingTrack = () => trackB;
     playerRuntime.onCrossfadeStart = (track) => {
       startCalledWith = track;
     };
@@ -160,5 +161,60 @@ describe("Smooth Crossfade Transitions", () => {
     expect(runtime.attachedTrackId).toBe(trackB.id);
     expect(playerRuntime.hasLoadedSourceFor(trackB.id)).toBe(true);
     expect(incomingDeck.volume).toBe(0.8);
+  });
+
+  it("aborts crossfade after incomingDeck.play() if epoch changed or getUpcomingTrack changed", async () => {
+    if (!playerRuntime) return;
+
+    const runtime = playerRuntime as any;
+    const initialDeckIndex = runtime.activeDeckIndex;
+    const outgoingDeck = runtime.decks[initialDeckIndex];
+    const incomingIndex = 1 - initialDeckIndex;
+    const incomingDeck = runtime.decks[incomingIndex];
+
+    outgoingDeck.volume = 0.8;
+    Object.defineProperty(outgoingDeck, "paused", {
+      value: false,
+      configurable: true,
+      writable: true,
+    });
+    Object.defineProperty(incomingDeck, "readyState", {
+      value: 4,
+      configurable: true,
+      writable: true,
+    });
+
+    let startCalled = false;
+    playerRuntime.onCrossfadeStart = () => {
+      startCalled = true;
+    };
+
+    // Scenario 1: getUpcomingTrack returns null (queue emptied or changed)
+    playerRuntime.getUpcomingTrack = () => null;
+    const crossfadePromise1 = playerRuntime.startCrossfade(trackB, 2);
+    await vi.advanceTimersByTimeAsync(50);
+    await crossfadePromise1;
+
+    expect(startCalled).toBe(false);
+    expect(runtime.isTransitioning).toBe(false);
+    expect(runtime.activeDeckIndex).toBe(initialDeckIndex);
+
+    // Scenario 2: epoch changes during incomingDeck.play()
+    let bumpedEpoch = false;
+    vi.spyOn(incomingDeck, "play").mockImplementationOnce(() => {
+      runtime.loadEpoch += 1;
+      bumpedEpoch = true;
+      return Promise.resolve();
+    });
+    playerRuntime.getUpcomingTrack = () => trackB;
+
+    const crossfadePromise2 = playerRuntime.startCrossfade(trackB, 2);
+    await vi.advanceTimersByTimeAsync(50);
+    await crossfadePromise2;
+
+    expect(bumpedEpoch).toBe(true);
+    expect(startCalled).toBe(false);
+    expect(runtime.isTransitioning).toBe(false);
+    expect(runtime.activeDeckIndex).toBe(initialDeckIndex);
   });
 });

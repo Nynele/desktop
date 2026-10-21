@@ -576,10 +576,18 @@ export class PlayerRuntime {
 
       if (currentEpoch !== this.loadEpoch) {
         this.isTransitioning = false;
+        this.resetDeck(incomingIndex);
         return;
       }
 
       await incomingDeck.play();
+
+      const upcomingTrack = this.getUpcomingTrack ? this.getUpcomingTrack() : nextTrack;
+      if (currentEpoch !== this.loadEpoch || upcomingTrack?.id !== nextTrack.id) {
+        this.isTransitioning = false;
+        this.resetDeck(incomingIndex);
+        return;
+      }
 
       // Immediately transfer active deck and track ownership to the incoming track!
       // This ensures:
