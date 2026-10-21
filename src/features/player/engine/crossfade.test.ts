@@ -67,7 +67,7 @@ describe("Smooth Crossfade Transitions", () => {
     expect(store.crossfadeDuration).toBe(5);
   });
 
-  it("updates and clamps crossfade duration correctly between 1s and 12s", () => {
+  it("updates and clamps crossfade duration correctly between 1s and 12s, ignoring non-finite inputs", () => {
     const store = usePlayerStore.getState();
     store.setCrossfadeDuration(8);
     expect(usePlayerStore.getState().crossfadeDuration).toBe(8);
@@ -78,8 +78,37 @@ describe("Smooth Crossfade Transitions", () => {
     store.setCrossfadeDuration(20);
     expect(usePlayerStore.getState().crossfadeDuration).toBe(12);
 
+    store.setCrossfadeDuration(NaN);
+    expect(usePlayerStore.getState().crossfadeDuration).toBe(12);
+
+    store.setCrossfadeDuration(Infinity);
+    expect(usePlayerStore.getState().crossfadeDuration).toBe(12);
+
+    store.setCrossfadeDuration(-Infinity);
+    expect(usePlayerStore.getState().crossfadeDuration).toBe(12);
+
     store.setCrossfadeEnabled(false);
     expect(usePlayerStore.getState().crossfadeEnabled).toBe(false);
+  });
+
+  it("normalizes crossfadeDuration at hydration boundary replacing non-finite values and clamping finite values", () => {
+    const onRehydrate = (usePlayerStore.persist.getOptions() as any).onRehydrateStorage?.();
+
+    const stateWithNaN: any = { crossfadeDuration: NaN };
+    onRehydrate?.(stateWithNaN);
+    expect(stateWithNaN.crossfadeDuration).toBe(5);
+
+    const stateWithInfinity: any = { crossfadeDuration: Infinity };
+    onRehydrate?.(stateWithInfinity);
+    expect(stateWithInfinity.crossfadeDuration).toBe(5);
+
+    const stateTooHigh: any = { crossfadeDuration: 30 };
+    onRehydrate?.(stateTooHigh);
+    expect(stateTooHigh.crossfadeDuration).toBe(12);
+
+    const stateTooLow: any = { crossfadeDuration: -5 };
+    onRehydrate?.(stateTooLow);
+    expect(stateTooLow.crossfadeDuration).toBe(1);
   });
 
   it("smoothly executes crossfade: fades in incoming deck, fades out outgoing deck and swaps active deck", async () => {
@@ -128,6 +157,8 @@ describe("Smooth Crossfade Transitions", () => {
     expect(runtime.isTransitioning).toBe(false);
     expect(runtime.activeDeckIndex).toBe(incomingIndex);
     expect(runtime.currentTrackId).toBe(trackB.id);
+    expect(runtime.attachedTrackId).toBe(trackB.id);
+    expect(playerRuntime.hasLoadedSourceFor(trackB.id)).toBe(true);
     expect(incomingDeck.volume).toBe(0.8);
   });
 });

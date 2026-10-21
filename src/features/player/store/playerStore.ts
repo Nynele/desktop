@@ -218,8 +218,10 @@ export const usePlayerStore = create<PlayerStore>()(
         set({ reverbLevel: Math.max(0, Math.min(1, reverbLevel)) }),
       setCrossfadeEnabled: (crossfadeEnabled: boolean) =>
         set({ crossfadeEnabled }),
-      setCrossfadeDuration: (crossfadeDuration: number) =>
-        set({ crossfadeDuration: Math.max(1, Math.min(12, crossfadeDuration)) }),
+      setCrossfadeDuration: (crossfadeDuration: number) => {
+        if (!Number.isFinite(crossfadeDuration)) return;
+        set({ crossfadeDuration: Math.max(1, Math.min(12, crossfadeDuration)) });
+      },
       resetSpeedAndPitch: () => set({ playbackRate: 1, pitchSemitones: 0 }),
       clearQueue: () => {
         const state = get();
@@ -292,8 +294,10 @@ export const usePlayerStore = create<PlayerStore>()(
           if (typeof state.crossfadeEnabled !== "boolean") {
             state.crossfadeEnabled = true;
           }
-          if (typeof state.crossfadeDuration !== "number" || isNaN(state.crossfadeDuration)) {
+          if (!Number.isFinite(state.crossfadeDuration)) {
             state.crossfadeDuration = 5;
+          } else {
+            state.crossfadeDuration = Math.max(1, Math.min(12, state.crossfadeDuration));
           }
         }
       },

@@ -588,8 +588,10 @@ export class PlayerRuntime {
       // 3. User controls (pause, seek, volume) target the incoming deck.
       this.activeDeckIndex = incomingIndex;
       this.currentTrackId = nextTrack.id;
+      this.attachedTrackId = nextTrack.id;
       this.crossfadeAttemptedTrackId = null;
 
+      this.applyPlaybackRateAndPitch();
       this.updateMediaSessionMetadata(nextTrack);
       this.onCrossfadeStart?.(nextTrack);
 
@@ -627,18 +629,12 @@ export class PlayerRuntime {
 
       if (currentEpoch !== this.loadEpoch) {
         this.isTransitioning = false;
+        this.resetDeck(outgoingIndex);
         return;
       }
 
       // Finalize: stop outgoing deck and reset its source
-      outgoingDeck.pause();
-      if (this.activeBlobUrls[outgoingIndex]) {
-        URL.revokeObjectURL(this.activeBlobUrls[outgoingIndex]!);
-        this.activeBlobUrls[outgoingIndex] = null;
-      }
-      outgoingDeck.removeAttribute("src");
-      outgoingDeck.load();
-      outgoingDeck.volume = usePlayerStore.getState().volume;
+      this.resetDeck(outgoingIndex);
 
       incomingDeck.volume = usePlayerStore.getState().volume;
       this.applyPlaybackRateAndPitch();
@@ -652,13 +648,7 @@ export class PlayerRuntime {
 
       // Clean up incoming deck if failed
       try {
-        incomingDeck.pause();
-        if (this.activeBlobUrls[incomingIndex]) {
-          URL.revokeObjectURL(this.activeBlobUrls[incomingIndex]!);
-          this.activeBlobUrls[incomingIndex] = null;
-        }
-        incomingDeck.removeAttribute("src");
-        incomingDeck.load();
+        this.resetDeck(incomingIndex);
       } catch {}
 
       // If outgoing deck already ended while resolving incoming track, skip to next immediately
@@ -766,6 +756,18 @@ export class PlayerRuntime {
     this.fadeTimer = setTimeout(tick, 16);
   }
 
+  private resetDeck(index: 0 | 1): void {
+    const deck = this.decks[index];
+    deck.pause();
+    if (this.activeBlobUrls[index]) {
+      URL.revokeObjectURL(this.activeBlobUrls[index]!);
+      this.activeBlobUrls[index] = null;
+    }
+    deck.removeAttribute("src");
+    deck.load();
+    deck.volume = usePlayerStore.getState().volume;
+  }
+
   private safeResetAudioElement() {
     this.isResetting = true;
     this.isTransitioning = false;
@@ -774,14 +776,7 @@ export class PlayerRuntime {
     try {
       this.cancelFade();
       for (let i = 0; i < 2; i++) {
-        const deck = this.decks[i];
-        deck.pause();
-        if (this.activeBlobUrls[i]) {
-          URL.revokeObjectURL(this.activeBlobUrls[i]!);
-          this.activeBlobUrls[i] = null;
-        }
-        deck.removeAttribute("src");
-        deck.load();
+        this.resetDeck(i as 0 | 1);
       }
       this.attachedTrackId = null;
     } catch {

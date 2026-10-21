@@ -286,6 +286,7 @@ class PlayerEngine {
         if (nextIndex !== null) {
           this.sessionId += 1;
           const mySession = this.sessionId;
+          this.telemetry.onTrackCompleted(false);
           store.setCurrentTrack(nextTrack, nextIndex);
           store.setPosition(0);
           store.setDuration(nextTrack.durationMs ?? 0);
