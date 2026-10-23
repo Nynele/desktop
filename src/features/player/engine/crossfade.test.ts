@@ -161,6 +161,9 @@ describe("Smooth Crossfade Transitions", () => {
     expect(runtime.attachedTrackId).toBe(trackB.id);
     expect(playerRuntime.hasLoadedSourceFor(trackB.id)).toBe(true);
     expect(incomingDeck.volume).toBe(0.8);
+    expect(incomingDeck.id).toBe("liner-audio");
+    expect(outgoingDeck.id).toBe("liner-audio-b");
+    expect((window as any).__liner_audio).toBe(incomingDeck);
   });
 
   it("aborts crossfade after incomingDeck.play() if epoch changed or getUpcomingTrack changed", async () => {

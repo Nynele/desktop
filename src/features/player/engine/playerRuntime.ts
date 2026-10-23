@@ -67,6 +67,30 @@ export class PlayerRuntime {
     this.activeBlobUrls[this.activeDeckIndex] = url;
   }
 
+  public syncActiveDeckDom(): void {
+    if (!this.decks || this.decks.length < 2) return;
+    const active = this.decks[this.activeDeckIndex];
+    const inactive = this.decks[1 - this.activeDeckIndex];
+    if (active) {
+      active.id = "liner-audio";
+    }
+    if (inactive) {
+      inactive.id = "liner-audio-b";
+    }
+    if (typeof window !== "undefined") {
+      const win = window as any;
+      win.__liner_audio = active;
+      win.__liner_audio_b = inactive;
+      try {
+        win.dispatchEvent(
+          new CustomEvent("liner:active-audio-change", {
+            detail: { audio: active },
+          }),
+        );
+      } catch {}
+    }
+  }
+
   constructor() {
     const win = typeof window !== "undefined" ? (window as any) : null;
     let deckA = (win?.__liner_audio || (typeof document !== "undefined" && document.getElementById("liner-audio"))) as HTMLAudioElement | null;
@@ -94,6 +118,7 @@ export class PlayerRuntime {
       win.__liner_audio_b = deckB;
     }
     this.decks = [deckA, deckB];
+    this.syncActiveDeckDom();
     this.setupAudioListeners(deckA);
     this.setupAudioListeners(deckB);
 
@@ -598,6 +623,7 @@ export class PlayerRuntime {
       this.currentTrackId = nextTrack.id;
       this.attachedTrackId = nextTrack.id;
       this.crossfadeAttemptedTrackId = null;
+      this.syncActiveDeckDom();
 
       this.applyPlaybackRateAndPitch();
       this.updateMediaSessionMetadata(nextTrack);
@@ -787,6 +813,7 @@ export class PlayerRuntime {
         this.resetDeck(i as 0 | 1);
       }
       this.attachedTrackId = null;
+      this.syncActiveDeckDom();
     } catch {
     } finally {
       this.isResetting = false;
