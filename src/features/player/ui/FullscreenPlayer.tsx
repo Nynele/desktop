@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { shouldReleaseTopPin, startsPinnedToTop } from "./lyricsTopPin";
 import { usePlayerState } from "../hooks/usePlayerState";
 import { playerEngine } from "../engine/playerEngine";
+import { playerRuntime } from "../engine/playerRuntime";
 import {
   useLyricsStore,
   LyricsProviderIsland,
@@ -34,7 +35,9 @@ function BraccatoLyricsView({ lyrics }: BraccatoLyricsViewProps) {
   const lastWheelTimeRef = useRef(0);
   const isInFreeSearchRef = useRef(false);
   const waitingForAudioAfterClickRef = useRef(false);
-  const pinnedToTopRef = useRef(startsPinnedToTop(player.status, player.positionMs));
+  const pinnedToTopRef = useRef(
+    startsPinnedToTop(player.status, player.positionMs),
+  );
 
   const scrollToActiveLine = useCallback(
     (behavior: ScrollBehavior = "smooth") => {
@@ -129,7 +132,12 @@ function BraccatoLyricsView({ lyrics }: BraccatoLyricsViewProps) {
       if (!el) return;
       el.theme = braccatoThemeCss;
       el.lyrics = latestLyricsRef.current;
-      el.source = "#liner-audio";
+      const activeAudio =
+        playerRuntime?.audio ??
+        (typeof document !== "undefined"
+          ? (document.getElementById("liner-audio") as HTMLAudioElement | null)
+          : null);
+      el.source = activeAudio ?? "#liner-audio";
 
       const handleBraccatoLineClick = (e: Event) => {
         const isAudioLoading = playerEngine.getSnapshot().status === "loading";
@@ -181,9 +189,13 @@ function BraccatoLyricsView({ lyrics }: BraccatoLyricsViewProps) {
       let lastReportedIndex = -1;
 
       const checkActiveLine = () => {
-        const audioEl = document.getElementById(
-          "liner-audio",
-        ) as HTMLAudioElement | null;
+        const audioEl =
+          playerRuntime?.audio ??
+          (typeof document !== "undefined"
+            ? (document.getElementById(
+                "liner-audio",
+              ) as HTMLAudioElement | null)
+            : null);
         if (audioEl && !Number.isNaN(audioEl.currentTime)) {
           const currentMs = audioEl.currentTime * 1000;
           const lines = useLyricsStore.getState().syncedLines;
@@ -243,8 +255,48 @@ function BraccatoLyricsView({ lyrics }: BraccatoLyricsViewProps) {
   useEffect(() => {
     latestLyricsRef.current = lyrics;
     const element = elementRef.current;
-    if (element) element.lyrics = lyrics;
+    if (element) {
+      element.lyrics = lyrics;
+      const activeAudio =
+        playerRuntime?.audio ??
+        (typeof document !== "undefined"
+          ? (document.getElementById("liner-audio") as HTMLAudioElement | null)
+          : null);
+      if (activeAudio) {
+        element.source = activeAudio;
+      }
+    }
   }, [lyrics]);
+
+  useEffect(() => {
+    const handleActiveAudioChange = (e: Event) => {
+      const customEvt = e as CustomEvent<{ audio?: HTMLAudioElement }>;
+      const element = elementRef.current;
+      if (element) {
+        const audio =
+          customEvt.detail?.audio ??
+          playerRuntime?.audio ??
+          (typeof document !== "undefined"
+            ? (document.getElementById(
+                "liner-audio",
+              ) as HTMLAudioElement | null)
+            : null);
+        if (audio) {
+          element.source = audio;
+        }
+      }
+    };
+    window.addEventListener(
+      "liner:active-audio-change",
+      handleActiveAudioChange,
+    );
+    return () => {
+      window.removeEventListener(
+        "liner:active-audio-change",
+        handleActiveAudioChange,
+      );
+    };
+  }, []);
 
   useEffect(() => {
     if (
@@ -261,7 +313,12 @@ function BraccatoLyricsView({ lyrics }: BraccatoLyricsViewProps) {
     let attempts = 0;
 
     const checkAndScroll = () => {
-      if (cancelled || waitingForAudioAfterClickRef.current || pinnedToTopRef.current) return;
+      if (
+        cancelled ||
+        waitingForAudioAfterClickRef.current ||
+        pinnedToTopRef.current
+      )
+        return;
       attempts++;
       const success = scrollToActiveLine("auto");
       if (!success && attempts < 30) {
@@ -281,9 +338,16 @@ function BraccatoLyricsView({ lyrics }: BraccatoLyricsViewProps) {
     const startedAt = performance.now();
     let rafId = 0;
     const holdTop = () => {
-      const el = elementRef.current as HTMLElement & { renderer?: { noteUserScroll?: () => void; resumeAutoscroll?: () => void } };
+      const el = elementRef.current as HTMLElement & {
+        renderer?: {
+          noteUserScroll?: () => void;
+          resumeAutoscroll?: () => void;
+        };
+      };
       if (!pinnedToTopRef.current) return;
-      const audio = document.getElementById("liner-audio") as HTMLAudioElement | null;
+      const audio = document.getElementById(
+        "liner-audio",
+      ) as HTMLAudioElement | null;
       const release = shouldReleaseTopPin({
         status: playerEngine.getSnapshot().status,
         audioPaused: !audio || audio.paused,
@@ -397,7 +461,11 @@ export function FullscreenPlayer({
           />
         )}
         {effectsReady ? (
-          <KawarpWrapper src={kawarpSrc} onLoad={onKawarpLoad} onError={onError} />
+          <KawarpWrapper
+            src={kawarpSrc}
+            onLoad={onKawarpLoad}
+            onError={onError}
+          />
         ) : null}
       </div>
 

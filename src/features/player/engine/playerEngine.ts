@@ -230,12 +230,10 @@ class PlaybackTelemetryTracker {
       const artistsList = snap?.artistList?.length
         ? snap.artistList.map((a) => ({ id: a.id || "unknown", name: a.name }))
         : snap?.artists
-          ? snap.artists
-              .split(",")
-              .map((name) => ({
-                id: snap?.artistId || "unknown",
-                name: name.trim(),
-              }))
+          ? snap.artists.split(",").map((name) => ({
+              id: snap?.artistId || "unknown",
+              name: name.trim(),
+            }))
           : [{ id: "unknown", name: "Unknown Artist" }];
 
       reported = this.sendEvent({
@@ -280,13 +278,16 @@ class PlaybackTelemetryTracker {
   }
 
   private sendEvent(payload: RecordPlaybackEventRequest): Promise<void> {
-    return api.recordPlaybackEvent(payload).then(() => undefined, (err) => {
-      log(
-        "yellow",
-        "telemetry",
-        `playback event report failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    });
+    return api.recordPlaybackEvent(payload).then(
+      () => undefined,
+      (err) => {
+        log(
+          "yellow",
+          "telemetry",
+          `playback event report failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      },
+    );
   }
 }
 
@@ -317,6 +318,29 @@ class PlayerEngine {
         this.telemetry.onTrackCompleted(isRepeatOne);
       };
       playerRuntime.onError = (info) => this.handlePlaybackError(info);
+      playerRuntime.getUpcomingTrack = () => this.getUpcomingTrack();
+      playerRuntime.onCrossfadeStart = (nextTrack) => {
+        const store = usePlayerStore.getState();
+        const nextIndex = this.computeNextIndex(true);
+        if (nextIndex !== null) {
+          this.sessionId += 1;
+          const mySession = this.sessionId;
+          this.telemetry.onTrackCompleted(false);
+          store.setCurrentTrack(nextTrack, nextIndex);
+          store.setPosition(0);
+          store.setDuration(nextTrack.durationMs ?? 0);
+          this.maybeExtendQueue(
+            mySession,
+            nextTrack.id,
+            nextIndex,
+            store.queue.length,
+          );
+        }
+      };
+      playerRuntime.onCrossfadeComplete = (_nextTrack) => {
+        const store = usePlayerStore.getState();
+        this.preloadNextTrack(store);
+      };
     }
 
     if (typeof window !== "undefined") {
@@ -632,9 +656,11 @@ class PlayerEngine {
     if (wasLoading) {
       playerRuntime?.cancelPendingLoad();
     }
-    const audioEl = document.getElementById(
-      "liner-audio",
-    ) as HTMLAudioElement | null;
+    const audioEl =
+      playerRuntime?.audio ??
+      (typeof document !== "undefined"
+        ? (document.getElementById("liner-audio") as HTMLAudioElement | null)
+        : null);
     if (audioEl && !Number.isNaN(audioEl.currentTime)) {
       store.setPosition(Math.round(audioEl.currentTime * 1000));
     }
@@ -1236,6 +1262,13 @@ class PlayerEngine {
     if (playerRuntime) {
       void playerRuntime.preloadTrack(nextTrack);
     }
+  }
+
+  private getUpcomingTrack(): Track | null {
+    const store = usePlayerStore.getState();
+    const nextIndex = this.computeNextIndex(true);
+    if (nextIndex === null) return null;
+    return store.queue[nextIndex] || null;
   }
 
   private async prefetchLyrics(

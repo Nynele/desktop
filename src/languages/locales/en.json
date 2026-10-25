@@ -650,6 +650,12 @@
       "title": "Autoplay similar tracks",
       "description": "Automatically add similar songs when your queue ends."
     },
+    "crossfade": {
+      "title": "Smooth Transition (Crossfade)",
+      "description": "Seamlessly overlaps and fades the end of each track into the beginning of the next.",
+      "duration_title": "Transition Duration",
+      "duration_description": "Time in seconds during which both songs overlap when changing tracks."
+    },
     "track_double_click": {
       "title": "Double-click on track",
       "description": "Choose what happens when you double-click a song card.",
