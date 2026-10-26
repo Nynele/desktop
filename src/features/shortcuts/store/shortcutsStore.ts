@@ -58,7 +58,9 @@ export const useShortcutsStore = create<ShortcutsStoreState>()(
 
       setGlobalShortcut: (action, rawShortcut) => {
         const normalized =
-          normalizeShortcutToEnglish(rawShortcut) || DEFAULT_SHORTCUTS.global[action];
+          rawShortcut === ""
+            ? ""
+            : normalizeShortcutToEnglish(rawShortcut) || DEFAULT_SHORTCUTS.global[action];
         const nextGlobal = {
           ...get().global,
           [action]: normalized,
@@ -74,7 +76,9 @@ export const useShortcutsStore = create<ShortcutsStoreState>()(
 
       setMainAppShortcut: (action, rawShortcut) => {
         const normalized =
-          normalizeShortcutToEnglish(rawShortcut) || DEFAULT_SHORTCUTS.mainApp[action];
+          rawShortcut === ""
+            ? ""
+            : normalizeShortcutToEnglish(rawShortcut) || DEFAULT_SHORTCUTS.mainApp[action];
         set({
           mainApp: {
             ...get().mainApp,
@@ -85,7 +89,9 @@ export const useShortcutsStore = create<ShortcutsStoreState>()(
 
       setMiniplayerShortcut: (action, rawShortcut) => {
         const normalized =
-          normalizeShortcutToEnglish(rawShortcut) || DEFAULT_SHORTCUTS.miniplayer[action];
+          rawShortcut === ""
+            ? ""
+            : normalizeShortcutToEnglish(rawShortcut) || DEFAULT_SHORTCUTS.miniplayer[action];
         set({
           miniplayer: {
             ...get().miniplayer,
@@ -152,15 +158,21 @@ export const useShortcutsStore = create<ShortcutsStoreState>()(
         // Normalize all rehydrated shortcuts
         for (const key of Object.keys(state.global) as (keyof GlobalShortcutsSettings)[]) {
           state.global[key] =
-            normalizeShortcutToEnglish(state.global[key]) || DEFAULT_SHORTCUTS.global[key];
+            state.global[key] === ""
+              ? ""
+              : normalizeShortcutToEnglish(state.global[key]) || DEFAULT_SHORTCUTS.global[key];
         }
         for (const key of Object.keys(state.mainApp) as (keyof MainAppShortcutsSettings)[]) {
           state.mainApp[key] =
-            normalizeShortcutToEnglish(state.mainApp[key]) || DEFAULT_SHORTCUTS.mainApp[key];
+            state.mainApp[key] === ""
+              ? ""
+              : normalizeShortcutToEnglish(state.mainApp[key]) || DEFAULT_SHORTCUTS.mainApp[key];
         }
         for (const key of Object.keys(state.miniplayer) as (keyof MiniplayerShortcutsSettings)[]) {
           state.miniplayer[key] =
-            normalizeShortcutToEnglish(state.miniplayer[key]) || DEFAULT_SHORTCUTS.miniplayer[key];
+            state.miniplayer[key] === ""
+              ? ""
+              : normalizeShortcutToEnglish(state.miniplayer[key]) || DEFAULT_SHORTCUTS.miniplayer[key];
         }
 
         notifyElectronGlobalShortcuts(state.global);

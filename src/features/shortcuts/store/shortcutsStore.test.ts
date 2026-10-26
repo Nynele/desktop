@@ -41,6 +41,14 @@ describe("shortcutsStore", () => {
     expect(useShortcutsStore.getState().miniplayer.nextTrack).toBe("N");
   });
 
+  it("allows clearing shortcuts to empty string and restoring them", () => {
+    useShortcutsStore.getState().setMainAppShortcut("toggleLyrics", "");
+    expect(useShortcutsStore.getState().mainApp.toggleLyrics).toBe("");
+
+    useShortcutsStore.getState().resetShortcut("mainApp", "toggleLyrics");
+    expect(useShortcutsStore.getState().mainApp.toggleLyrics).toBe("L");
+  });
+
   it("resets individual shortcuts to default", () => {
     useShortcutsStore.getState().setMainAppShortcut("playPause", "P");
     expect(useShortcutsStore.getState().mainApp.playPause).toBe("P");

@@ -9,6 +9,7 @@ import {
   AddLine,
   MinimizeLine,
   Refresh1Line,
+  CloseLine,
 } from "@mingcute/react";
 import { useLyricsStore } from "../store/lyricsStore";
 import { useTranslation } from "@/languages";
@@ -23,7 +24,11 @@ function formatOffsetBadge(ms: number): string {
   return `${sign}${(ms / 1000).toFixed(2)}s`;
 }
 
-export function LyricsProviderIsland() {
+export interface LyricsProviderIslandProps {
+  onClose?: () => void;
+}
+
+export function LyricsProviderIsland({ onClose }: LyricsProviderIslandProps = {}) {
   const { t } = useTranslation();
   const {
     availableProviders,
@@ -139,7 +144,7 @@ export function LyricsProviderIsland() {
       ref={containerRef}
       className="relative inline-flex items-center pointer-events-auto select-none"
     >
-      <div className="inline-flex items-center h-[32px] min-h-[32px] max-h-[32px] box-border rounded-lg bg-black/50 backdrop-blur-xl px-[3px] gap-[2px] text-white">
+      <div className="inline-flex items-center h-[32px] min-h-[32px] max-h-[32px] box-border rounded-lg bg-black/50 backdrop-blur-xl border border-white/[0.06] px-[3px] gap-[2px] text-white">
         {hasMultiple && (
           <button
             type="button"
@@ -244,6 +249,25 @@ export function LyricsProviderIsland() {
               className="w-[26px] h-[26px] min-w-[26px] min-h-[26px] max-h-[26px] rounded-md flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all border-none bg-transparent cursor-pointer"
             >
               <AddLine size={12} />
+            </button>
+          </>
+        )}
+
+        {onClose && (
+          <>
+            <div className="w-[1px] h-[14px] bg-white/15 mx-[1px]" />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }}
+              aria-label={t("player.hide_lyrics_options") || "Hide options"}
+              title={`${t("player.hide_lyrics_options") || "Hide options"} (O)`}
+              className="w-[26px] h-[26px] min-w-[26px] min-h-[26px] max-h-[26px] rounded-md flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all border-none bg-transparent cursor-pointer"
+            >
+              <CloseLine size={13} />
             </button>
           </>
         )}

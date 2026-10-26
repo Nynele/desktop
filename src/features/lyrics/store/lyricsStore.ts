@@ -69,6 +69,8 @@ export interface LyricsState {
   offsetMs: number;
   trackOffsets: Record<string, number>;
   activeLineIndex: number | null;
+  showLyrics: boolean;
+  showOptions: boolean;
 
   setLyricsState: (
     state: Partial<
@@ -81,6 +83,10 @@ export interface LyricsState {
         | "adjustOffset"
         | "resetOffset"
         | "setActiveLineIndex"
+        | "setShowLyrics"
+        | "toggleLyrics"
+        | "setShowOptions"
+        | "toggleOptions"
       >
     >,
   ) => void;
@@ -89,6 +95,10 @@ export interface LyricsState {
   setOffset: (offsetMs: number) => void;
   adjustOffset: (deltaMs: number) => void;
   resetOffset: () => void;
+  setShowLyrics: (show: boolean) => void;
+  toggleLyrics: () => void;
+  setShowOptions: (show: boolean) => void;
+  toggleOptions: () => void;
   reset: () => void;
 }
 
@@ -113,6 +123,13 @@ export const useLyricsStore = create<LyricsState>()(
       offsetMs: 0,
       trackOffsets: {},
       activeLineIndex: null,
+      showLyrics: true,
+      showOptions: true,
+
+      setShowLyrics: (showLyrics) => set({ showLyrics }),
+      toggleLyrics: () => set((state) => ({ showLyrics: !state.showLyrics })),
+      setShowOptions: (showOptions) => set({ showOptions }),
+      toggleOptions: () => set((state) => ({ showOptions: !state.showOptions })),
 
       setActiveLineIndex: (index) => {
         if (get().activeLineIndex === index) return;
@@ -277,11 +294,19 @@ export const useLyricsStore = create<LyricsState>()(
           if (!state.trackOffsets) {
             state.trackOffsets = {};
           }
+          if (state.showLyrics === undefined) {
+            state.showLyrics = true;
+          }
+          if (state.showOptions === undefined) {
+            state.showOptions = true;
+          }
         }
       },
       partialize: (state) => ({
         currentLyricsTrackId: state.currentLyricsTrackId,
         trackOffsets: state.trackOffsets,
+        showLyrics: state.showLyrics,
+        showOptions: state.showOptions,
       }),
     },
   ),

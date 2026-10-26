@@ -15,6 +15,8 @@ export interface MainAppShortcutsSettings {
   search: string;           // e.g. "/" (1 button)
   toggleQueue: string;      // e.g. "Q" (1 button)
   toggleFullscreen: string; // e.g. "F" (1 button)
+  toggleLyrics: string;     // e.g. "L" (1 button)
+  toggleLyricsOptions: string; // e.g. "O" (1 button)
 }
 
 export interface MiniplayerShortcutsSettings {
@@ -52,6 +54,8 @@ export const DEFAULT_SHORTCUTS: ShortcutsSettings = {
     search: "/",
     toggleQueue: "Q",
     toggleFullscreen: "F",
+    toggleLyrics: "L",
+    toggleLyricsOptions: "O",
   },
   miniplayer: {
     playPause: "Space",

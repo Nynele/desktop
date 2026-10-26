@@ -11,15 +11,26 @@ import { FullscreenTransportControls } from "./FullscreenTransportControls";
 interface PlayerUiElementsProps {
   onDuration?: (duration: number) => void;
   onClose?: () => void;
+  centered?: boolean;
 }
 
-export function PlayerUiElements({ onClose }: PlayerUiElementsProps) {
+export function PlayerUiElements({
+  onClose,
+  centered = false,
+}: PlayerUiElementsProps) {
   const track = usePlayerState().currentTrack;
   const coverUrl = track?.coverUrl || "";
   const isCoverLoaded = useCoverReady(coverUrl);
 
   return (
-    <div className="flex w-[min(340px,32vw,calc(100vh-340px))] min-w-[240px] flex-col items-stretch">
+    <div
+      className={cn(
+        "flex flex-col items-stretch transition-all duration-300",
+        centered
+          ? "w-[min(380px,36vw,calc(100vh-320px))] min-w-[260px]"
+          : "w-[min(340px,32vw,calc(100vh-340px))] min-w-[240px]",
+      )}
+    >
       <div
         className={cn(
           "relative aspect-square w-full shrink-0 overflow-hidden rounded-xl bg-black/20",

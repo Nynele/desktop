@@ -19,6 +19,8 @@ import {
   FastForwardLine,
   FastRewindLine,
   ExternalLinkLine,
+  AlignLeftLine,
+  TimeLine,
 } from "@mingcute/react";
 import { useTranslation } from "@/languages";
 import { Dialog, Button, Tooltip, useToast } from "@/shared/ui";
@@ -177,6 +179,19 @@ export function ShortcutsTab({
         t("settings.shortcuts.toggle_fullscreen_desc") ||
         "Toggle immersive fullscreen player view.",
     },
+    toggleLyrics: {
+      title: t("settings.shortcuts.toggle_lyrics") || "Toggle lyrics",
+      desc:
+        t("settings.shortcuts.toggle_lyrics_desc") ||
+        "Show or hide synchronized lyrics in player.",
+    },
+    toggleLyricsOptions: {
+      title:
+        t("settings.shortcuts.toggle_lyrics_options") || "Lyrics options",
+      desc:
+        t("settings.shortcuts.toggle_lyrics_options_desc") ||
+        "Show or hide lyrics provider and synchronization options.",
+    },
   };
 
   // Labels for Miniplayer Actions
@@ -237,6 +252,7 @@ export function ShortcutsTab({
   // Conflict validation callback factories
   const validateGlobalCandidate = useCallback(
     (currentKey: keyof GlobalShortcutsSettings) => (candidate: string) => {
+      if (!candidate) return null;
       const norm = normalizeShortcutToEnglish(candidate).toLowerCase();
       for (const [key, val] of Object.entries(global) as [
         keyof GlobalShortcutsSettings,
@@ -244,6 +260,7 @@ export function ShortcutsTab({
       ][]) {
         if (
           key !== currentKey &&
+          val &&
           normalizeShortcutToEnglish(val).toLowerCase() === norm
         ) {
           return { conflictWith: globalLabels[key].title };
@@ -256,6 +273,7 @@ export function ShortcutsTab({
 
   const validateMainAppCandidate = useCallback(
     (currentKey: keyof MainAppShortcutsSettings) => (candidate: string) => {
+      if (!candidate) return null;
       const norm = normalizeShortcutToEnglish(candidate).toLowerCase();
       for (const [key, val] of Object.entries(mainApp) as [
         keyof MainAppShortcutsSettings,
@@ -263,6 +281,7 @@ export function ShortcutsTab({
       ][]) {
         if (
           key !== currentKey &&
+          val &&
           normalizeShortcutToEnglish(val).toLowerCase() === norm
         ) {
           return { conflictWith: mainAppLabels[key].title };
@@ -275,6 +294,7 @@ export function ShortcutsTab({
 
   const validateMiniplayerCandidate = useCallback(
     (currentKey: keyof MiniplayerShortcutsSettings) => (candidate: string) => {
+      if (!candidate) return null;
       const norm = normalizeShortcutToEnglish(candidate).toLowerCase();
       for (const [key, val] of Object.entries(miniplayer) as [
         keyof MiniplayerShortcutsSettings,
@@ -282,6 +302,7 @@ export function ShortcutsTab({
       ][]) {
         if (
           key !== currentKey &&
+          val &&
           normalizeShortcutToEnglish(val).toLowerCase() === norm
         ) {
           return { conflictWith: miniplayerLabels[key].title };
@@ -451,6 +472,30 @@ export function ShortcutsTab({
         onChange: (val) => setMainAppShortcut("toggleFullscreen", val),
         onReset: () => resetShortcut("mainApp", "toggleFullscreen"),
         validateCandidate: validateMainAppCandidate("toggleFullscreen"),
+      },
+      {
+        id: "mainApp-toggleLyrics",
+        scope: "mainApp",
+        title: mainAppLabels.toggleLyrics.title,
+        desc: mainAppLabels.toggleLyrics.desc,
+        icon: AlignLeftLine,
+        value: mainApp.toggleLyrics,
+        defaultValue: DEFAULT_SHORTCUTS.mainApp.toggleLyrics,
+        onChange: (val) => setMainAppShortcut("toggleLyrics", val),
+        onReset: () => resetShortcut("mainApp", "toggleLyrics"),
+        validateCandidate: validateMainAppCandidate("toggleLyrics"),
+      },
+      {
+        id: "mainApp-toggleLyricsOptions",
+        scope: "mainApp",
+        title: mainAppLabels.toggleLyricsOptions.title,
+        desc: mainAppLabels.toggleLyricsOptions.desc,
+        icon: TimeLine,
+        value: mainApp.toggleLyricsOptions,
+        defaultValue: DEFAULT_SHORTCUTS.mainApp.toggleLyricsOptions,
+        onChange: (val) => setMainAppShortcut("toggleLyricsOptions", val),
+        onReset: () => resetShortcut("mainApp", "toggleLyricsOptions"),
+        validateCandidate: validateMainAppCandidate("toggleLyricsOptions"),
       },
 
       // Miniplayer Actions

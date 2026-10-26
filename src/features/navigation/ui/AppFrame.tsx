@@ -1052,20 +1052,6 @@ export default function AppFrame({ children }: AppFrameProps) {
       <UpdateModal />
       <YoutubeSignInNotice />
       <UpdateToastBridge />
-      <AnimatePresence>
-        {isFullscreenPlayer && (
-          <motion.div
-            key="fullscreen-window-controls"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute top-[6px] right-[6px] z-[80] pointer-events-auto select-none"
-          >
-            <WindowControls isFullscreen embedded />
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

@@ -135,7 +135,7 @@ export default function WindowControls({
       className={cn(
         "flex items-center gap-[2px] select-none pointer-events-auto",
         isFullscreen
-          ? "h-[32px] px-[3px] rounded-lg bg-black/50 backdrop-blur-xl"
+          ? "h-[32px] px-[3px] rounded-lg bg-black/50 backdrop-blur-xl border border-white/[0.06]"
           : "h-[46px] px-[6px] rounded-xl apple-glass-pill",
       )}
     >

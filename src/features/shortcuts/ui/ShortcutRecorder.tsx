@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CloseCircleFill } from "@mingcute/react";
+import { CloseCircleFill, CloseLine } from "@mingcute/react";
 import { ResetIcon } from "./ResetIcon";
 import { useTranslation } from "@/languages";
 import {
@@ -18,6 +18,7 @@ export interface ShortcutRecorderProps {
   defaultValue: string;
   onChange: (newValue: string) => void;
   onReset: () => void;
+  onClear?: () => void;
   isGlobal?: boolean;
   validateCandidate?: (candidate: string) => { conflictWith: string } | null;
   disabled?: boolean;
@@ -107,6 +108,16 @@ export function ShortcutRecorder({
         return;
       }
 
+      const hasMod = e.ctrlKey || e.altKey || e.shiftKey || e.metaKey;
+
+      if (!hasMod && (e.key === "Backspace" || e.key === "Delete")) {
+        setHeldModifiers([]);
+        setErrorMessage(null);
+        setIsRecording(false);
+        onChange("");
+        return;
+      }
+
       updateModifiers(e);
 
       if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) {
@@ -118,7 +129,6 @@ export function ShortcutRecorder({
         return;
       }
 
-      const hasMod = e.ctrlKey || e.altKey || e.shiftKey || e.metaKey;
       const isFKey = /^F\d{1,2}$/i.test(englishKey);
 
       // Global shortcuts require at least one modifier
@@ -199,36 +209,6 @@ export function ShortcutRecorder({
 
   return (
     <div className="relative flex items-center gap-1.5 shrink-0 h-[30px]">
-      {/* Per-row reset button hidden for now */}
-      {/*
-      <AnimatePresence>
-        {hasChanged && !disabled && (
-          <motion.button
-            type="button"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.1, ease: "easeOut" }}
-            aria-label={
-              t("settings.shortcuts.reset_tooltip", {
-                shortcut: formatAcceleratorForDisplay(defaultValue),
-              }) || `Reset to ${formatAcceleratorForDisplay(defaultValue)}`
-            }
-            onClick={(e) => {
-              e.stopPropagation();
-              setHeldModifiers([]);
-              setErrorMessage(null);
-              setIsRecording(false);
-              onReset();
-            }}
-            className="h-[24px] w-[24px] rounded-md border-0 outline-none flex items-center justify-center bg-border-alpha-14 hover:bg-border-alpha-20 text-text-tertiary hover:text-text-primary transition-colors cursor-pointer select-none active:scale-[0.95] p-0 shrink-0"
-          >
-            <ResetIcon size={12.5} className="-top-[0.62px] left-[0.3px]" style={{ top: "-0.62px", left: "0.3px" }} />
-          </motion.button>
-        )}
-      </AnimatePresence>
-      */}
-
       <button
         ref={recordButtonRef}
         type="button"
@@ -284,18 +264,82 @@ export function ShortcutRecorder({
               transition={{ duration: 0.1, ease: "easeOut" }}
               className="flex items-center gap-1 select-none"
             >
-              {getAcceleratorKeycaps(value).map((chip, idx) => (
-                <span
-                  key={idx}
-                  className="inline-flex items-center justify-center min-w-[30px] h-[30px] px-[10px] rounded-[8px] bg-black/[0.08] text-text-primary text-[13px] font-[500] leading-none transition-colors group-hover:bg-black/[0.12] dark:bg-black/40 dark:group-hover:bg-black/50"
-                >
-                  {chip}
+              {value ? (
+                getAcceleratorKeycaps(value).map((chip, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center justify-center min-w-[30px] h-[30px] px-[10px] rounded-[8px] bg-black/[0.08] text-text-primary text-[13px] font-[500] leading-none transition-colors group-hover:bg-black/[0.12] dark:bg-black/40 dark:group-hover:bg-black/50"
+                  >
+                    {chip}
+                  </span>
+                ))
+              ) : (
+                <span className="inline-flex items-center justify-center min-w-[30px] h-[30px] px-[10px] rounded-[8px] bg-black/[0.04] text-text-tertiary italic text-[13px] font-[500] leading-none transition-colors group-hover:bg-black/[0.08] dark:bg-white/[0.05] dark:group-hover:bg-white/[0.08]">
+                  {t("settings.shortcuts.none") || "None"}
                 </span>
-              ))}
+              )}
             </motion.div>
           )}
         </AnimatePresence>
       </button>
+
+      {/* Clear shortcut button (visible on row hover when a shortcut is set) */}
+      <AnimatePresence>
+        {value && !isRecording && !disabled && (
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.1 }}
+            aria-label={t("settings.shortcuts.clear_shortcut") || "Clear shortcut"}
+            title={t("settings.shortcuts.clear_shortcut") || "Clear shortcut"}
+            onClick={(e) => {
+              e.stopPropagation();
+              setHeldModifiers([]);
+              setErrorMessage(null);
+              setIsRecording(false);
+              onChange("");
+            }}
+            className="h-[24px] w-[24px] rounded-md border-0 outline-none flex items-center justify-center text-text-tertiary hover:text-text-primary hover:bg-black/[0.08] dark:hover:bg-white/10 transition-colors cursor-pointer select-none active:scale-95 p-0 shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100"
+          >
+            <CloseLine size={13} />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Restore default shortcut button (visible on row hover when cleared) */}
+      <AnimatePresence>
+        {!value && !isRecording && !disabled && defaultValue && (
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.1 }}
+            aria-label={
+              t("settings.shortcuts.reset_tooltip", {
+                shortcut: formatAcceleratorForDisplay(defaultValue),
+              }) || `Reset to ${formatAcceleratorForDisplay(defaultValue)}`
+            }
+            title={
+              t("settings.shortcuts.reset_tooltip", {
+                shortcut: formatAcceleratorForDisplay(defaultValue),
+              }) || `Reset to ${formatAcceleratorForDisplay(defaultValue)}`
+            }
+            onClick={(e) => {
+              e.stopPropagation();
+              setHeldModifiers([]);
+              setErrorMessage(null);
+              setIsRecording(false);
+              onReset();
+            }}
+            className="h-[24px] w-[24px] rounded-md border-0 outline-none flex items-center justify-center text-text-tertiary hover:text-text-primary hover:bg-black/[0.08] dark:hover:bg-white/10 transition-colors cursor-pointer select-none active:scale-95 p-0 shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100"
+          >
+            <ResetIcon size={12.5} className="-top-[0.62px] left-[0.3px]" style={{ top: "-0.62px", left: "0.3px" }} />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* Floating Conflict Tooltip - Zero layout shift & completely borderless */}
       <AnimatePresence>
