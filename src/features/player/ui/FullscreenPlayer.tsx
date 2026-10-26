@@ -553,17 +553,16 @@ export function FullscreenPlayer({
                 transition: { duration: 0.32, ease: [0.32, 0.72, 0, 1] },
               }}
               transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
-              className="absolute right-0 top-0 bottom-0 w-1/2 h-full min-h-0 pl-2 pr-6 flex flex-col pointer-events-auto z-20"
+              className="absolute right-0 top-0 bottom-0 w-1/2 h-full min-h-0 pl-2 pr-6 flex flex-col pointer-events-auto z-20 overflow-hidden"
             >
               <AnimatePresence>
                 {showProviderIsland && showOptions && (
                   <motion.div
                     key="lyrics-provider-island"
-                    initial={{ opacity: 0, y: -40 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ y: -60 }}
+                    animate={{ y: 0 }}
                     exit={{
-                      opacity: 0,
-                      y: -40,
+                      y: -60,
                       transition: { duration: 0.22, ease: [0.32, 0.72, 0, 1] },
                     }}
                     transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
