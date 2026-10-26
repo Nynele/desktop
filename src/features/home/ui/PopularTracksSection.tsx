@@ -265,9 +265,10 @@ function AlbumCard({
           {item.item.explicit && (
             <ExplicitBadge size="md" className="mr-[6px] shrink-0" />
           )}
-          <span className="truncate text-[13px] text-text-tertiary">
-            {item.item.artist}
-          </span>
+          <ArtistLink
+            name={item.item.artist}
+            className="text-[13px] text-text-tertiary"
+          />
         </div>
       </div>
 

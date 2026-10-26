@@ -545,7 +545,6 @@
         "description": "Katmanı diğer pencerelerin üstünde tutar."
       }
     },
-
     "audio_data": {
       "description": "Yayın kalitesi, çevrimdışı önbellek ve bağlantı tanılama."
     },
@@ -773,6 +772,11 @@
     },
     "connection": {
       "open_folder": "Kaydedilen konumu aç"
+    },
+    "cover_glow": {
+      "title": "Kapak parıltısı",
+      "description": "Sayfaların arkasında bulanık kapak parıltısı. Düz arka plan için kapatın.",
+      "disabled_for_light": "Açık temada kapalı."
     }
   },
   "toast": {

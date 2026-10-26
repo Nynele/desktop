@@ -11,7 +11,6 @@ import { HeartFill, HeartLine } from "@mingcute/react";
 import CoverImage from "@/features/covers/ui/CoverImage";
 import { ScrollableText } from "@/shared/ui/ScrollableText";
 import { useDisableButtonFocus } from "@/features/navigation/hooks/useDisableButtonFocus";
-import { getAuthSession } from "@/shared/api/auth-session";
 import type { OverlayAction, OverlayStatePayload } from "../contracts";
 import { useShortcutsStore, matchesShortcut } from "@/features/shortcuts";
 
@@ -41,12 +40,7 @@ export function OverlayPlayer() {
   const [interpolatedPosMs, setInterpolatedPosMs] = useState(state.positionMs);
   const lastTrackIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (!getAuthSession()) {
-      window.linerElectron?.closeOverlay?.();
-      return;
-    }
-
+  const pullLatestState = useCallback(() => {
     window.linerElectron?.getOverlayInitialState?.().then((initial) => {
       if (initial) {
         anchorPosRef.current = initial.positionMs;
@@ -55,6 +49,10 @@ export function OverlayPlayer() {
         setState(initial);
       }
     });
+  }, []);
+
+  useEffect(() => {
+    pullLatestState();
 
     if (window.linerElectron?.onOverlayState) {
       const cleanupState = window.linerElectron.onOverlayState((newState) => {
@@ -62,7 +60,7 @@ export function OverlayPlayer() {
       });
       return cleanupState;
     }
-  }, []);
+  }, [pullLatestState]);
 
   useEffect(() => {
     const signal = setTimeout(() => window.linerElectron?.overlayReady?.(), 0);
@@ -74,10 +72,11 @@ export function OverlayPlayer() {
     const cleanupVisibility = window.linerElectron.onOverlayVisibility(
       (visible) => {
         setIsVisible(visible);
+        if (visible) pullLatestState();
       },
     );
     return cleanupVisibility;
-  }, []);
+  }, [pullLatestState]);
 
   const sendAction = useCallback((action: OverlayAction) => {
     window.linerElectron?.sendOverlayAction?.(action);
@@ -141,6 +140,7 @@ export function OverlayPlayer() {
 
   const currentPosMs = interpolatedPosMs;
   const progressRatio = Math.min(1, Math.max(0, currentPosMs / durationMs));
+
 
   // Keyboard Shortcuts (Miniplayer mode)
   useEffect(() => {
@@ -241,6 +241,7 @@ export function OverlayPlayer() {
           transformOrigin: "center center",
         }}
       >
+
         {/* Background Progress Fill - Straight rectangular without rounding */}
         <div
           className="pointer-events-none absolute inset-y-0 left-0 z-[1] rounded-none"

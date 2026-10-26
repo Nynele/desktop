@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { MusicNote } from "@solar-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCoverReady, CoverImage } from "@/features/covers";
@@ -7,6 +8,26 @@ import { VolumePicker } from "./VolumePicker";
 import { FullscreenTrackInfo } from "./FullscreenTrackInfo";
 import { FullscreenTimeline } from "./FullscreenTimeline";
 import { FullscreenTransportControls } from "./FullscreenTransportControls";
+import { BASE_COLUMN_WIDTH, fullscreenColumnScale } from "../lib/fullscreenScale";
+import { useWindowState } from "@/features/navigation/hooks/useWindowState";
+
+function useFullscreenColumnScale(): number {
+  const { isEdgeToEdge } = useWindowState();
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    if (!isEdgeToEdge) {
+      setScale(1);
+      return;
+    }
+    const update = () => setScale(fullscreenColumnScale(window.innerWidth, window.innerHeight));
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [isEdgeToEdge]);
+
+  return scale;
+}
 
 interface PlayerUiElementsProps {
   onDuration?: (duration: number) => void;
@@ -21,15 +42,21 @@ export function PlayerUiElements({
   const track = usePlayerState().currentTrack;
   const coverUrl = track?.coverUrl || "";
   const isCoverLoaded = useCoverReady(coverUrl);
+  const scale = useFullscreenColumnScale();
+  const scaled = scale > 1;
+  const baseWidth = centered ? Math.round(BASE_COLUMN_WIDTH * 1.1) : BASE_COLUMN_WIDTH;
 
   return (
     <div
       className={cn(
         "flex flex-col items-stretch transition-all duration-300",
-        centered
-          ? "w-[min(380px,36vw,calc(100vh-320px))] min-w-[260px]"
-          : "w-[min(340px,32vw,calc(100vh-340px))] min-w-[240px]",
+        centered ? "min-w-[260px]" : "min-w-[240px]",
+        !scaled &&
+          (centered
+            ? "w-[min(380px,36vw,calc(100vh-320px))]"
+            : "w-[min(340px,32vw,calc(100vh-340px))]"),
       )}
+      style={scaled ? { width: Math.round(baseWidth * scale) } : undefined}
     >
       <div
         className={cn(
@@ -37,7 +64,7 @@ export function PlayerUiElements({
           coverUrl && !isCoverLoaded && "animate-pulse",
         )}
       >
-        <AnimatePresence>
+        <AnimatePresence initial={false}>
           <motion.div
             key={track?.id || coverUrl || "empty"}
             initial={{ opacity: 0, filter: "blur(8px)" }}
@@ -52,7 +79,7 @@ export function PlayerUiElements({
                 src={coverUrl}
                 alt={track?.title || ""}
                 fill
-                sizes="340px"
+                sizes={`${Math.round(baseWidth * scale)}px`}
                 priority
                 unoptimized
                 className="rounded-xl object-cover"

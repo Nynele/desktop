@@ -1,8 +1,12 @@
+import { motion } from "framer-motion";
 import { useTranslation } from "@/languages";
 import { cn } from "@/shared/lib";
 import { useWindowAnimationStore } from "@/shared/ui";
 import { useWindowState } from "../hooks/useWindowState";
 import { CloseIcon, MaximizeIcon, MinimizeIcon } from "./WindowControlIcons";
+
+export const WINDOW_CONTROLS_LAYOUT_ID = "window-controls-pill";
+export const WINDOW_CONTROLS_MORPH = { duration: 0.28, ease: [0.22, 1, 0.36, 1] } as const;
 
 export interface WindowControlsProps {
   className?: string;
@@ -128,7 +132,9 @@ export default function WindowControls({
   }
 
   const capsule = (
-    <div
+    <motion.div
+      layoutId={isFullscreen && embedded ? WINDOW_CONTROLS_LAYOUT_ID : undefined}
+      transition={WINDOW_CONTROLS_MORPH}
       data-no-window-drag
       data-window-controls
       data-no-tooltip="true"
@@ -140,7 +146,7 @@ export default function WindowControls({
       )}
     >
       {buttons}
-    </div>
+    </motion.div>
   );
 
   if (embedded) {

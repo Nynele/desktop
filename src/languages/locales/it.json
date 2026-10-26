@@ -545,7 +545,6 @@
         "description": "Mantieni l'overlay sopra le altre finestre."
       }
     },
-
     "audio_data": {
       "description": "Qualità dello streaming, cache offline e diagnostica della connessione."
     },
@@ -773,6 +772,11 @@
     },
     "connection": {
       "open_folder": "Apri la posizione di salvataggio"
+    },
+    "cover_glow": {
+      "title": "Bagliore copertina",
+      "description": "Bagliore sfocato della copertina dietro le pagine. Disattiva per uno sfondo semplice.",
+      "disabled_for_light": "Disattivato nel tema chiaro."
     }
   },
   "toast": {

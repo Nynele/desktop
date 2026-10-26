@@ -511,10 +511,14 @@ export function FullscreenPlayer({
           className="absolute inset-0"
           style={{ backgroundColor: "var(--color-bg-primary)" }}
         />
-        {kawarpSrc && !kawarpShown && (
+        {(kawarpSrc || coverUrl) && !kawarpShown && (
           <div
-            className="absolute inset-0 bg-cover bg-center filter blur-3xl scale-110 opacity-70 pointer-events-none"
-            style={{ backgroundImage: `url(${kawarpSrc})` }}
+            className="absolute inset-0 bg-cover bg-center pointer-events-none"
+            style={{
+              backgroundImage: `url(${kawarpSrc || coverUrl})`,
+              filter: "blur(64px) saturate(1.3)",
+              transform: "scale(1.3)",
+            }}
           />
         )}
         {effectsReady ? (

@@ -549,7 +549,6 @@
         "description": "Utrzymuje nakładkę nad innymi oknami."
       }
     },
-
     "audio_data": {
       "description": "Jakość streamingu, pamięć podręczna offline i diagnostyka połączenia."
     },
@@ -777,6 +776,11 @@
     },
     "connection": {
       "open_folder": "Otwórz lokalizację zapisu"
+    },
+    "cover_glow": {
+      "title": "Poświata okładki",
+      "description": "Rozmyta poświata okładki za stronami. Wyłącz, aby zostawić jednolite tło.",
+      "disabled_for_light": "Wyłączone w jasnym motywie."
     }
   },
   "toast": {

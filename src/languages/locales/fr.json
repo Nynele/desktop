@@ -547,7 +547,6 @@
         "description": "Garde l'overlay au-dessus des autres fenêtres."
       }
     },
-
     "audio_data": {
       "description": "Qualité du streaming, cache hors ligne et diagnostic de connexion."
     },
@@ -775,6 +774,11 @@
     },
     "connection": {
       "open_folder": "Ouvrir l'emplacement"
+    },
+    "cover_glow": {
+      "title": "Halo de pochette",
+      "description": "Halo flouté de la pochette derrière les pages. Désactivez pour un fond uni.",
+      "disabled_for_light": "Désactivé en thème clair."
     }
   },
   "toast": {

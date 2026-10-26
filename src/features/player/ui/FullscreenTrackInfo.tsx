@@ -45,7 +45,7 @@ export function FullscreenTrackInfo({ onClose }: FullscreenTrackInfoProps) {
         </p>
         <p className="font-montserrat m-0 flex min-w-0 items-center gap-[6px] text-[14px] font-[500] text-white/70 leading-snug">
           {track?.explicit && (
-            <span className="font-montserrat inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] bg-[#414141] text-[10px] font-[700] leading-none text-white">
+            <span className="font-montserrat inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] bg-[#303030]/50 backdrop-blur-2xl backdrop-saturate-150 text-[10px] font-[700] leading-none text-white">
               <span className="[text-box:trim-both_cap_alphabetic]">E</span>
             </span>
           )}

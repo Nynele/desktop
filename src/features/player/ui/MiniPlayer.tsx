@@ -39,7 +39,7 @@ import { SpeedPitchPicker } from "./SpeedPitchPicker";
 import { TimelineSlider } from "./TimelineSlider";
 import { useTheme } from "next-themes";
 import { useCoverReady, CoverImage } from "@/features/covers";
-import { usePageBackdropStore } from "@/shared/lib";
+import { useHasPageBackdrop } from "@/features/settings/store/customizationStore";
 import { ArtistLink } from "@/features/artist";
 
 function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
@@ -217,7 +217,7 @@ function MiniPlayer({
   const miniPlayerStyle = usePlayerStore((state) => state.miniPlayerStyle);
   const usesRoundedStyle = !embedded && miniPlayerStyle === "rounded";
   const usesBackgroundProgress = true;
-  const hasPageBackdrop = usePageBackdropStore((s) => Boolean(s.coverUrl));
+  const hasPageBackdrop = useHasPageBackdrop();
   const [accentColor, setAccentColor] = useState(
     isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.12)",
   );
@@ -316,6 +316,7 @@ function MiniPlayer({
 
   const [queueLimit, setQueueLimit] = useState(50);
   const [volumeOpen, setVolumeOpen] = useState(false);
+  const volumePinnedRef = useRef(false);
   const [volumePopupStyle, setVolumePopupStyle] = useState<React.CSSProperties>(
     { bottom: 52 },
   );
@@ -333,7 +334,6 @@ function MiniPlayer({
     null,
   );
   const [isVolumeDragging, setIsVolumeDragging] = useState(false);
-  const lastNonZeroVolumeRef = useRef<number>(0.7);
 
   const currentTrack = player.currentTrack;
   const volumeLevel = toVolumeLevel(player.volume);
@@ -467,30 +467,20 @@ function MiniPlayer({
   }, []);
 
   const handleVolumeMouseEnter = useCallback(() => {
+    if (speedOpen) return;
     clearVolumeHoverTimer();
     updateVolumePopupPosition();
-    setSpeedOpen(false);
     setVolumeOpen(true);
-  }, [clearVolumeHoverTimer, updateVolumePopupPosition]);
+  }, [clearVolumeHoverTimer, updateVolumePopupPosition, speedOpen]);
 
   const handleVolumeMouseLeave = useCallback(() => {
     clearVolumeHoverTimer();
     // Keep open while user is actively dragging the slider
-    if (isVolumeDragging) return;
+    if (isVolumeDragging || volumePinnedRef.current) return;
     volumeHoverCloseTimerRef.current = setTimeout(() => {
       setVolumeOpen(false);
     }, 140);
   }, [clearVolumeHoverTimer, isVolumeDragging]);
-
-  const handleToggleMute = useCallback(() => {
-    if (volumeLevel > 0) {
-      lastNonZeroVolumeRef.current = volumeLevel;
-      playerEngine.setVolume(0);
-    } else {
-      const restore = lastNonZeroVolumeRef.current || 0.7;
-      playerEngine.setVolume(toVolumeGain(restore));
-    }
-  }, [volumeLevel]);
 
   const handleVolumeWheel = useCallback(
     (e: React.WheelEvent) => {
@@ -501,6 +491,7 @@ function MiniPlayer({
       playerEngine.setVolume(toVolumeGain(nextLevel));
       setVolumeOpen(true);
       clearVolumeHoverTimer();
+      if (volumePinnedRef.current) return;
       volumeHoverCloseTimerRef.current = setTimeout(() => {
         setVolumeOpen(false);
       }, 1200);
@@ -519,7 +510,10 @@ function MiniPlayer({
   }, [clearVolumeHoverTimer]);
 
   useEffect(() => {
-    if (!volumeOpen) return;
+    if (!volumeOpen) {
+      volumePinnedRef.current = false;
+      return;
+    }
     updateVolumePopupPosition();
   }, [volumeOpen, updateVolumePopupPosition]);
 
@@ -600,7 +594,7 @@ function MiniPlayer({
             ref={volumePopupRef}
             initial={{ opacity: 0, y: 8, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.96 }}
+            exit={{ opacity: 0, y: 6, scale: 0.96, pointerEvents: "none" }}
             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
             className="absolute bottom-[52px] z-[99] w-[46px] rounded-[11px] p-[4px] bg-black/[0.05] backdrop-blur-2xl backdrop-saturate-150 dark:bg-white/[0.07] prevent-seek"
             style={volumePopupStyle}
@@ -608,8 +602,7 @@ function MiniPlayer({
             onMouseEnter={clearVolumeHoverTimer}
             onMouseLeave={handleVolumeMouseLeave}
           >
-            {/* Seamless invisible hit zone bridging popup and toggle button */}
-            <div className="absolute -inset-x-3 -bottom-[22px] top-0 pointer-events-auto" />
+            <div className="absolute inset-x-0 -bottom-[8px] top-0 pointer-events-auto" />
 
             <VolumeColumn onDraggingChange={handleVolumeDraggingChange} />
           </motion.div>
@@ -641,7 +634,7 @@ function MiniPlayer({
             : embedded
               ? `rounded-[12px] ${
                   hasPageBackdrop
-                    ? "bg-bg-glass backdrop-blur-[48px] backdrop-saturate-50"
+                    ? "bg-bg-glass dark:bg-black/20 backdrop-blur-[48px] backdrop-saturate-150"
                     : "bg-bg-primary"
                 }`
               : "rounded-3xl border-[0.5px] border-border-tertiary bg-bg-primary"
@@ -887,11 +880,12 @@ function MiniPlayer({
                   speedOpen ||
                   Math.abs((player.playbackRate ?? 1) - 1) > 0.001 ||
                   Math.abs(player.pitchSemitones ?? 0) > 0.001
-                    ? "bg-white/[0.09] text-white"
+                    ? activeToggleClass
                     : ""
                 }`}
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => {
+                  clearVolumeHoverTimer();
                   setVolumeOpen(false);
                   onQueueOpenChange?.(false);
                   setSpeedOpen((prev) => !prev);
@@ -929,9 +923,15 @@ function MiniPlayer({
                 onWheel={handleVolumeWheel}
                 onClick={(e) => {
                   e.stopPropagation();
+                  clearVolumeHoverTimer();
+                  if (volumeOpen && volumePinnedRef.current) {
+                    setVolumeOpen(false);
+                    return;
+                  }
+                  volumePinnedRef.current = true;
+                  updateVolumePopupPosition();
                   setSpeedOpen(false);
                   onQueueOpenChange?.(false);
-                  handleToggleMute();
                   setVolumeOpen(true);
                 }}
                 style={{ cursor: "pointer" }}

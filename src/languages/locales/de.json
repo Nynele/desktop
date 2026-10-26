@@ -359,7 +359,7 @@
     "repeat": "Wiederholung",
     "previous": "Vorher",
     "open_player": "Player öffnen",
-    "next":"Weiter",
+    "next": "Weiter",
     "lyrics_upgraded": "Songtext verbessert!",
     "playing_from": "Wiedergabe von",
     "autoplay_radio": "Autoplay-Radio",
@@ -717,6 +717,11 @@
     },
     "connection": {
       "open_folder": "Speicherort öffnen"
+    },
+    "cover_glow": {
+      "title": "Cover-Leuchten",
+      "description": "Unscharfes Cover-Leuchten hinter Seiten. Ausschalten für einen schlichten Hintergrund.",
+      "disabled_for_light": "Im hellen Design aus."
     }
   },
   "toast": {

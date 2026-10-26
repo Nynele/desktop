@@ -836,6 +836,11 @@
       "scope_main_app": "App principal",
       "scope_overlay": "Superposición",
       "reset_section": "Restablecer sección"
+    },
+    "cover_glow": {
+      "title": "Brillo de portada",
+      "description": "Brillo difuminado de la portada tras las páginas. Desactívalo para un fondo liso.",
+      "disabled_for_light": "Desactivado en el tema claro."
     }
   },
   "toast": {

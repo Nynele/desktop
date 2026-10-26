@@ -10,6 +10,8 @@ import { useDailyMixes } from "../hooks/useDailyMixes";
 import { useMostSaved, usePopularAlbums } from "../hooks/useExploreCollections";
 import { useTranslation } from "@/languages";
 import { usePageBackdrop } from "@/shared/lib";
+import { useStrikingCover } from "../hooks/useStrikingCover";
+import { useAccentBackdrop } from "../hooks/useAccentBackdrop";
 import {
   AlbumFill,
   BookmarkFill,
@@ -33,11 +35,15 @@ export default function HomePage() {
   const firstAlbum = popularAlbums[0];
   const firstAlbumCover =
     firstAlbum?.type === "album" ? firstAlbum.item.coverUrl : undefined;
+  const mixBackdropCover = useStrikingCover(
+    (dailyMixes ?? []).slice(0, 4).map((mix) => mix.coverUrl),
+  );
+  const mixAccentBackdrop = useAccentBackdrop(mixBackdropCover);
   usePageBackdrop(
-    dailyMixes?.[0]?.coverUrl ||
-      firstAlbumCover ||
-      listeningNow[0]?.coverUrl ||
-      undefined,
+    hasMixes
+      ? mixAccentBackdrop
+      : firstAlbumCover || listeningNow[0]?.coverUrl || undefined,
+    hasMixes ? { blur: 56, dim: 0.22 } : undefined,
   );
 
   const isDataLoading =
@@ -65,7 +71,11 @@ export default function HomePage() {
         {isReady && (
           <div className="col-start-1 row-start-1 w-full pb-[16px]">
             {dailyMixes && hasMixes && (
-              <DailyMixesSection mixes={dailyMixes} headingMarginTop="mt-0" />
+              <DailyMixesSection
+                mixes={dailyMixes}
+                headingMarginTop="mt-0"
+                accentCoverUrl={mixBackdropCover}
+              />
             )}
 
             {popularAlbums.length > 0 && (

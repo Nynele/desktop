@@ -8,6 +8,7 @@ import MixFluidSquare from "./MixFluidSquare";
 export interface DailyMixesSectionProps {
   mixes: DailyMix[];
   headingMarginTop?: string;
+  accentCoverUrl?: string;
 }
 
 
@@ -21,11 +22,12 @@ const headingStyle: React.CSSProperties = {
 function DailyMixesSection({
   mixes,
   headingMarginTop = "mt-[22px]",
+  accentCoverUrl,
 }: DailyMixesSectionProps) {
   const { t } = useTranslation();
   if (mixes.length === 0) return null;
 
-  const firstCoverUrl = mixes[0]?.coverUrl;
+  const firstCoverUrl = accentCoverUrl ?? mixes[0]?.coverUrl;
 
   return (
     <div className="flex flex-col">
