@@ -410,6 +410,7 @@ export function FullscreenPlayer({
 
   const [showTopControls, setShowTopControls] = useState(true);
   const isHoveringTopRef = useRef(false);
+  const isFocusedTopRef = useRef(false);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const resetHideTimer = useCallback((delay = 2500) => {
@@ -418,11 +419,30 @@ export function FullscreenPlayer({
       hideTimerRef.current = null;
     }
     hideTimerRef.current = setTimeout(() => {
-      if (!isHoveringTopRef.current) {
+      if (!isHoveringTopRef.current && !isFocusedTopRef.current) {
         setShowTopControls(false);
       }
     }, delay);
   }, []);
+
+  const handleTopControlsFocus = useCallback(() => {
+    isFocusedTopRef.current = true;
+    setShowTopControls(true);
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  }, []);
+
+  const handleTopControlsBlur = useCallback(
+    (e: React.FocusEvent<HTMLDivElement>) => {
+      if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+        isFocusedTopRef.current = false;
+        resetHideTimer(800);
+      }
+    },
+    [resetHideTimer],
+  );
 
   const handleToggleLyrics = useCallback(() => {
     if (hasLyrics) {
@@ -573,11 +593,13 @@ export function FullscreenPlayer({
                       isHoveringTopRef.current = false;
                       resetHideTimer(800);
                     }}
+                    onFocus={handleTopControlsFocus}
+                    onBlur={handleTopControlsBlur}
                     className={cn(
-                      "absolute top-[6px] left-1/2 -translate-x-1/2 z-30 flex justify-center transition-opacity duration-300 ease-out",
+                      "absolute top-[6px] left-1/2 -translate-x-1/2 z-30 flex justify-center transition-all duration-300 ease-out",
                       showTopControls
-                        ? "opacity-100 pointer-events-auto"
-                        : "opacity-0 pointer-events-none",
+                        ? "opacity-100 pointer-events-auto visible"
+                        : "opacity-0 pointer-events-none invisible",
                     )}
                   >
                     <LyricsProviderIsland onClose={() => setShowOptions(false)} />
@@ -691,11 +713,13 @@ export function FullscreenPlayer({
           isHoveringTopRef.current = false;
           resetHideTimer(800);
         }}
+        onFocus={handleTopControlsFocus}
+        onBlur={handleTopControlsBlur}
         className={cn(
-          "absolute top-[6px] left-[6px] z-30 select-none transition-opacity duration-300 ease-out",
+          "absolute top-[6px] left-[6px] z-30 select-none transition-all duration-300 ease-out",
           showTopControls
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none",
+            ? "opacity-100 pointer-events-auto visible"
+            : "opacity-0 pointer-events-none invisible",
         )}
         data-no-window-drag
       >
@@ -763,11 +787,13 @@ export function FullscreenPlayer({
           isHoveringTopRef.current = false;
           resetHideTimer(800);
         }}
+        onFocus={handleTopControlsFocus}
+        onBlur={handleTopControlsBlur}
         className={cn(
-          "absolute top-[6px] right-[6px] z-30 select-none transition-opacity duration-300 ease-out",
+          "absolute top-[6px] right-[6px] z-30 select-none transition-all duration-300 ease-out",
           showTopControls
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none",
+            ? "opacity-100 pointer-events-auto visible"
+            : "opacity-0 pointer-events-none invisible",
         )}
       >
         <WindowControls isFullscreen embedded />

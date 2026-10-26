@@ -11,7 +11,7 @@ import { FullscreenTransportControls } from "./FullscreenTransportControls";
 import { BASE_COLUMN_WIDTH, fullscreenColumnScale } from "../lib/fullscreenScale";
 import { useWindowState } from "@/features/navigation/hooks/useWindowState";
 
-function useFullscreenColumnScale(): number {
+function useFullscreenColumnScale(baseWidth = BASE_COLUMN_WIDTH): number {
   const { isEdgeToEdge } = useWindowState();
   const [scale, setScale] = useState(1);
 
@@ -20,11 +20,12 @@ function useFullscreenColumnScale(): number {
       setScale(1);
       return;
     }
-    const update = () => setScale(fullscreenColumnScale(window.innerWidth, window.innerHeight));
+    const update = () =>
+      setScale(fullscreenColumnScale(window.innerWidth, window.innerHeight, baseWidth));
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, [isEdgeToEdge]);
+  }, [isEdgeToEdge, baseWidth]);
 
   return scale;
 }
@@ -42,9 +43,9 @@ export function PlayerUiElements({
   const track = usePlayerState().currentTrack;
   const coverUrl = track?.coverUrl || "";
   const isCoverLoaded = useCoverReady(coverUrl);
-  const scale = useFullscreenColumnScale();
-  const scaled = scale > 1;
   const baseWidth = centered ? Math.round(BASE_COLUMN_WIDTH * 1.1) : BASE_COLUMN_WIDTH;
+  const scale = useFullscreenColumnScale(baseWidth);
+  const scaled = scale > 1;
 
   return (
     <div

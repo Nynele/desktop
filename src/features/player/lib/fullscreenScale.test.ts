@@ -19,4 +19,11 @@ describe("fullscreenColumnScale", () => {
   it("is limited by height on wide but short windows", () => {
     expect(fullscreenColumnScale(2560, 700)).toBeCloseTo(1.06, 2);
   });
+
+  it("adjusts scale calculation proportionally when a custom baseWidth is provided", () => {
+    const centeredBaseWidth = Math.round(340 * 1.1); // 374
+    const scale = fullscreenColumnScale(2560, 700, centeredBaseWidth);
+    // (700 - 80 - 260) / 374 = 360 / 374 ~= 0.962 -> clamped to Math.max(1, ...)
+    expect(scale).toBe(1);
+  });
 });
