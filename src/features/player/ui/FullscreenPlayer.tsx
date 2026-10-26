@@ -545,10 +545,9 @@ export function FullscreenPlayer({
           {effectiveShowLyrics && (
             <motion.div
               key="fullscreen-lyrics-column"
-              initial={{ opacity: 0, x: "100%" }}
-              animate={{ opacity: 1, x: "0%" }}
+              initial={{ x: "100%" }}
+              animate={{ x: "0%" }}
               exit={{
-                opacity: 0,
                 x: "100%",
                 transition: { duration: 0.32, ease: [0.32, 0.72, 0, 1] },
               }}
